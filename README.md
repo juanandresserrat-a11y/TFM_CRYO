@@ -305,11 +305,11 @@ La composición varía entre semillas mediante muestreo Dirichlet (k=50).
 
 ## 8. Referencias principales
 
-- Helfrich, W. (1973). Z. Naturforsch. C — elasticidad de membrana
-- Piggot et al. (2017). JCTC — parámetro de orden S_CH
-- Chaisson et al. (2025). JCIM — interdigitación trans-leaflet
-- Martinez-Sanchez et al. (2024). IEEE Trans. Med. Imaging — PolNet
-- Kučerka et al. (2011). BBA Biomembranes — áreas y grosores lipídicos
-- Nagle & Tristram-Nagle (2000). BBA Reviews — densidad electrónica
-- Pinigin (2022). Membranes — parámetros elásticos de membrana
-- Di Paolo & De Camilli (2006). Nature — fosfoinosítidos
+- Helfrich, W. (1973). Z. Naturforsch. C - elasticidad de membrana
+- Piggot et al. (2017). JCTC - parámetro de orden S_CH
+- Chaisson et al. (2025). JCIM - interdigitación trans-leaflet
+- Martinez-Sanchez et al. (2024). IEEE Trans. Med. Imaging - PolNet
+- Kučerka et al. (2011). BBA Biomembranes - áreas y grosores lipídicos
+- Nagle & Tristram-Nagle (2000). BBA Reviews - densidad electrónica
+- Pinigin (2022). Membranes - parámetros elásticos de membrana
+- Di Paolo & De Camilli (2006). Nature - fosfoinosítidos
