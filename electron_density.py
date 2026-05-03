@@ -1,34 +1,27 @@
 """
 electron_density.py
-===================
 Densidad electronica correcta para simulacion de contraste cryo-ET.
 
-La cryo-ET detecta la dispersion de electrones por los atomos de la muestra,
-no la masa molecular. Las cabezas polares (fosfato, colina, glicerol) son
-ricas en P, N, O y dispersan significativamente mas que las colas acil,
-compuestas casi exclusivamente por C e H.
-
-El contraste caracteristico de doble banda (dark-bright-dark) de la bicapa
-en cryo-ET emerge de esta diferencia: las cabezas polares son las regiones
-densas (oscuras en convenio de grises positivo) y el nucleo hidrofobico
-es la region clara.
+La cryo-ET mide la dispersion de electrones, no la masa molecular.
+Las cabezas polares (P, N, O) dispersan mas electrones que las colas
+acil (C, H), generando el contraste caracteristico de doble banda
+oscura-clara-oscura.
 
 Este modulo calcula:
-  1. Perfiles de densidad electronica por region anatomica de la bicapa
-  2. Volumen 3D de densidad electronica (sustituye al de densidad de masa)
-  3. Proyeccion XY con contraste fisicamente correcto
+  1. Perfiles de densidad electronica por region de la bicapa
+  2. Volumen 3D de densidad electronica
+  3. Proyecciones XY con contraste fisico
 
-Valores de referencia (electrones/Å³):
-  Agua bulk:              0.334
-  Cabezas polares (PC):   0.44-0.47
-  Glicerol:               0.38-0.40
-  Colas acil (saturadas): 0.28-0.31
-  Nucleo CH₂:             0.29
+Valores de referencia (e/Å³):
+  Agua bulk: 0.334
+  Cabezas polares: 0.44–0.47
+  Glicerol: 0.38–0.40
+  Colas acil: 0.28–0.31
+  Nucleo CH2: 0.29
 
-Fuentes:
-  Nagle & Tristram-Nagle, Biochim. Biophys. Acta 2000
-  Kucerka et al., Biophys. J. 2008
-  Wiener & White, Biophys. J. 1992
+Referencias principales:
+    [11] Kučerka et al. 2008 – determinación experimental de espesores y áreas de densidad electrónica en bicapas lipídicas
+    [18] Nagle & Tristram-Nagle 2000 – modelo estructural de bicapas y perfiles de densidad electrónica en sistemas lipídicos
 """
 
 from __future__ import annotations
@@ -92,15 +85,15 @@ def electron_density_profile(
     sigma: float = 0.5,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Perfil de densidad electronica 1D a lo largo del eje Z.
+    Perfil 1D de densidad electronica a lo largo del eje Z.
 
-    Diferencia cabezas polares (ED alto) del nucleo hidrofobico (ED bajo),
-    reproduciendo el perfil dark-bright-dark observable en cryo-ET.
+    Distingue las cabezas polares (alta densidad electronica)
+    del nucleo hidrofobico (baja densidad), reproduciendo el
+    patron dark-bright-dark observado en cryo-ET.
 
     Retorna
-    -------
-    (z_centers, ed_profile)
-        z_centers en Å, ed_profile en electrones/Å³
+      (z_centers, ed_profile)
+      z_centers en Å, ed_profile en electrones/Å³
     """
     todos = membrane.outer_leaflet + membrane.inner_leaflet
     zs = np.array([l.head_pos[2] for l in todos])
@@ -171,15 +164,13 @@ def electron_density_volume(
     """
     Volumen 3D de densidad electronica en electrones/Å³.
 
-    Cada lipido contribuye con su densidad de cabeza (ED alto) y cola (ED bajo)
-    a las celdas correspondientes. El agua llena el fondo.
+    Cada lipido aporta su contribucion segun region:
+      - Cabezas polares: alta densidad electronica
+      - Colas acil: baja densidad electronica
+      - Agua: fondo basal
 
-    El resultado tiene el mismo formato que volumetric_density() de analysis.py
-    y puede reemplazarlo en export_mrc.py para mayor realismo fisico.
-
-    Retorna
-    -------
-    (vol, edges) donde vol[x,y,z] en electrones/Å³
+    El resultado es compatible con volumetric_density() de analysis.py
+    y puede usarse en export_mrc.py para mayor realismo fisico.
     """
     g = membrane.geometry
     z_half = (g.total_thick / 10.0) / 2.0 + 0.5

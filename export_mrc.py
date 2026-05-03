@@ -1,34 +1,32 @@
 """
 export_mrc.py
-=============
 Exportacion de la bicapa en formato MRC para integracion con PolNet.
 
-PolNet (Martinez-Sanchez et al., IEEE Trans. Med. Imaging 2024) es un
-generador de tomogramas sinteticos de cryo-ET que acepta volumenes de
-densidad y etiquetas semanticas en formato MRC como modulos de membrana.
+PolNet genera tomogramas sinteticos de cryo-ET a partir de volumenes de 
+densidad y etiquetas semanticas en formato MRC.
 
-Este modulo produce dos archivos por semilla:
-  bilayer_seed{N}.mrc        densidad 3D normalizada (entrada para PolNet)
-  bilayer_seed{N}_labels.mrc volumen de etiquetas semanticas 3D
+Este modulo genera dos archivos por semilla:
+  bilayer_seed{N}.mrc
+    volumen 3D de densidad normalizada (entrada PolNet)
 
-Etiquetas semanticas (compatibles con el esquema de PolNet):
-  0  fondo (exterior acuoso)
-  1  monocapa externa  (cabezas polares sup + glicerol)
-  2  nucleo hidrofobico (colas acil)
-  3  monocapa interna  (cabezas polares inf + glicerol)
+  bilayer_seed{N}_labels.mrc
+    volumen 3D de etiquetas semanticas
 
-Flujo de integracion con PolNet:
+Etiquetas:
+  0 fondo (agua)
+  1 monocapa externa
+  2 nucleo hidrofobico
+  3 monocapa interna
+
+Flujo:
   BicapaCryoET.build()
-      -> export_mrc()            produce bilayer.mrc + labels.mrc
-      -> PolNet YAML config       referencia bilayer.mrc como membrane model
-      -> polnet run config.yaml   anade CTF, missing wedge, ruido, proteinas
-      -> tomograma.mrc            listo para MemBrain o TomoSegNet
+    -> export_mrc()
+    -> PolNet config
+    -> polnet run
+    -> tomograma MRC
 
-Referencia:
-  Martinez-Sanchez, A., Lamm, L., Jasnin, M., & Phelippeau, H. (2024).
-  Simulating the cellular context in synthetic datasets for cryo-electron
-  tomography. IEEE Transactions on Medical Imaging, 43(11), 3742-3754.
-  https://doi.org/10.1109/TMI.2024.3398401
+Referencia principal:
+    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
 """
 
 from __future__ import annotations
@@ -61,28 +59,15 @@ def export_density_mrc(
     bins_z: int = 40,
 ) -> str:
     """
-    Exporta el volumen 3D de densidad de masa como archivo MRC.
+    Exporta el volumen 3D de densidad de masa a formato MRC.
 
-    El volumen se normaliza a [0, 255] float32 para compatibilidad
-    con el rango de grises esperado por PolNet. Las coordenadas Z son
-    relativas al plano medio local (curvatura Helfrich corregida).
+    El volumen se normaliza a [0, 255] en float32 para compatibilidad
+    con el rango de grises usado por PolNet. Las coordenadas Z se
+    definen respecto al plano medio local con correccion de curvatura
+    (Helfrich).
 
-    MRC usa orden ZYX internamente: se transpone antes de escribir.
-
-    Parametros
-    ----------
-    membrane : BicapaCryoET
-        Bicapa ya construida.
-    voxel_angstrom : float
-        Tamano de voxel en Å. PolNet usa tipicamente 10 Å.
-    bins_xy, bins_z : int
-        Resolucion del volumen. 55x55x40 con 50 nm → ~9 Å/voxel,
-        compatible con los 10 Å/voxel de PolNet.
-
-    Retorna
-    -------
-    str
-        Ruta al archivo MRC generado.
+    El formato MRC utiliza orden ZYX internamente, por lo que el
+    volumen se transpone antes de la escritura.
     """
     H, _ = analysis.volumetric_density(membrane, bins_xy=bins_xy, bins_z=bins_z)
 
@@ -110,41 +95,38 @@ def export_label_mrc(
     bins_z: int = 40,
 ) -> str:
     """
-    Exporta el volumen 3D de etiquetas semanticas como archivo MRC.
+    Exporta el volumen 3D de etiquetas semanticas a formato MRC.
 
-    El volumen de etiquetas identifica cada voxel segun su region
-    estructural en la bicapa. Esquema compatible con PolNet:
+    Las etiquetas identifican cada voxel segun su region estructural
+    en la bicapa, siguiendo el esquema compatible con PolNet:
 
-      0  fondo (solucion acuosa exterior)
-      1  monocapa externa  (z > z_outer - hg_thick/2)
-      2  nucleo hidrofobico (z_inner < z < z_outer, region de colas)
-      3  monocapa interna  (z < z_inner + hg_thick/2)
+      0 fondo (solucion acuosa exterior)
+      1 monocapa externa
+      2 nucleo hidrofobico
+      3 monocapa interna
 
-    Los limites entre regiones se calculan a partir de la geometria
-    media de la bicapa (MembraneGeometry) y se aplican en coordenadas
-    Z relativas al plano medio local.
-
-    Parametros
-    ----------
-    membrane : BicapaCryoET
-        Bicapa ya construida.
-    voxel_angstrom : float
-        Tamano de voxel en Å (debe coincidir con export_density_mrc).
-    bins_xy, bins_z : int
-        Resolucion (debe coincidir con export_density_mrc).
-
-    Retorna
-    -------
-    str
-        Ruta al archivo MRC de etiquetas generado.
+    Los limites entre regiones se derivan de la geometria media de la
+    bicapa (MembraneGeometry) y se aplican en coordenadas Z relativas
+    al plano medio local.
     """
     _, edges = analysis.volumetric_density(membrane, bins_xy=bins_xy, bins_z=bins_z)
     cz = 0.5 * (edges[2][:-1] + edges[2][1:])
 
     g = membrane.geometry
 
-    hg_half_o = (g.z_outer - g.hydro_thick / 2.0) / 10.0
-    hg_half_i = (g.z_inner + g.hydro_thick / 2.0) / 10.0
+    # hydro_thick es la suma de las colas de AMBAS monocapas, no el grosor
+    # de una sola. Usar hydro_thick/2 aqui comprimia el nucleo hasta ~0.65 nm
+    # y asignaba label=2 a casi toda la bicapa. Se usa hg_thick promedio
+    # de la composicion externa, que refleja correctamente el grosor del
+    # grupo cabeza (~9 A para POPC) y da limites correctos (~1.65 nm).
+    from lipid_types import LIPID_TYPES
+    hg_mean = (
+        sum(LIPID_TYPES[k].hg_thick * f for k, f in membrane.comp_outer.items()
+            if k in LIPID_TYPES)
+        if membrane.comp_outer else 9.0
+    )
+    hg_half_o = (g.z_outer - hg_mean / 2.0) / 10.0
+    hg_half_i = (g.z_inner + hg_mean / 2.0) / 10.0
 
     labels = np.zeros((bins_xy, bins_xy, bins_z), dtype=np.uint8)
 
@@ -173,13 +155,7 @@ def export_mrc(
     bins_xy: int = 55,
     bins_z: int = 40,
 ) -> dict:
-    """
-    Exporta densidad y etiquetas MRC en una sola llamada.
-
-    Retorna
-    -------
-    dict con claves 'density' y 'labels' apuntando a las rutas generadas.
-    """
+    """Exporta densidad y etiquetas MRC en una sola llamada."""
     print("  Exportando MRC para seed=%d..." % membrane.seed)
     path_density = export_density_mrc(membrane, voxel_angstrom, bins_xy, bins_z)
     path_labels  = export_label_mrc(membrane, voxel_angstrom, bins_xy, bins_z)
@@ -194,29 +170,12 @@ def generate_polnet_yaml(
     tilt_range: tuple = (-60, 60, 3),
 ) -> str:
     """
-    Genera una plantilla YAML de configuracion para PolNet que
-    referencia los archivos MRC exportados por este modulo.
+    Genera una plantilla YAML de configuracion para PolNet.
 
-    El YAML resultante puede usarse directamente con:
-        polnet --config config_seed{N}.yaml
+    El YAML referencia directamente los archivos MRC exportados por este
+    modulo y puede ejecutarse con:
 
-    Parametros
-    ----------
-    membrane : BicapaCryoET
-        Bicapa ya construida (y con MRC ya exportado).
-    tomo_shape : tuple (X, Y, Z)
-        Dimensiones del tomograma sintetico en voxels.
-    voxel_angstrom : float
-        Tamano de voxel en Å.
-    snr : float
-        Relacion senal-ruido para la simulacion TEM (tipico: 0.05-0.2).
-    tilt_range : tuple (min, max, step)
-        Rango de inclinacion en grados para la serie de inclinacion.
-
-    Retorna
-    -------
-    str
-        Ruta al archivo YAML generado.
+      polnet --config config_seed{N}.yaml
     """
     density_path = os.path.abspath(os.path.join(
         _mrc_dir(), "bilayer_seed%04d.mrc" % membrane.seed
@@ -287,23 +246,19 @@ def export_double_gaussian_mrc(
     bins_z: int = 40,
 ) -> str:
     """
-    Exporta la membrana como perfil de doble gaussiana suave para PolNet.
+    Exporta la membrana como perfil de doble gaussiana para PolNet.
 
-    PolNet modela membranas como perfiles de densidad de doble capa
-    gaussiana (double-layer Gaussian profiles), sin granularidad molecular.
-    Esta funcion genera ese perfil directamente desde la geometria del modelo,
-    mejorando la interoperabilidad con el motor de imagen de PolNet.
+    PolNet representa las membranas como perfiles continuos de densidad
+    tipo doble capa gaussiana, sin resolución molecular explícita.
 
-    Para cada voxel del volumen, la densidad se calcula como:
+    Esta función construye ese perfil directamente a partir de la geometría
+    del modelo, mejorando la compatibilidad con el motor de simulación.
+
+    Para cada voxel:
       rho(z) = A_head * [G(z - z_outer, sigma_hg) + G(z - z_inner, sigma_hg)]
              + A_tail * G(z - z_mid, sigma_tail)
 
-    donde sigma_hg es el ancho del grupo cabeza y sigma_tail el del nucleo,
-    ambos derivados de la geometria media de la bicapa.
-
-    Referencia:
-      Martinez-Sanchez et al. IEEE Trans. Med. Imaging 2024 [PolNet]
-      Peck et al. Nature Methods 2025 [phantom dataset cryo-ET]
+    sigma_hg y sigma_tail se derivan de la geometría media de la bicapa.
     """
     from analysis import midplane_map
 
@@ -356,25 +311,22 @@ def export_label_mrc_with_closing(
     bins_xy: int = 55,
     bins_z: int = 40,
 ) -> str:
-    """
-    Exporta etiquetas semanticas con cierre morfologico 3D.
-
-    Aplica binary_closing de scipy para garantizar conectividad
-    topologica de cada region, evitando discontinuidades espurias
-    causadas por la ondulacion Helfrich en los limites de capa.
-    Requerido para compatibilidad con Surface-Dice loss de MemBrain-seg.
-
-    Referencia:
-      MemBrain-seg: github.com/teamtomo/membrain-seg
-    """
+    """Exporta etiquetas semanticas con cierre morfologico 3D."""
     from scipy.ndimage import binary_closing
 
     _, edges = analysis.volumetric_density(membrane, bins_xy=bins_xy, bins_z=bins_z)
     cz = 0.5 * (edges[2][:-1] + edges[2][1:])
     g  = membrane.geometry
 
-    hg_half_o = (g.z_outer - g.hydro_thick / 2.0) / 10.0
-    hg_half_i = (g.z_inner + g.hydro_thick / 2.0) / 10.0
+    # Misma corrección que export_label_mrc: usar hg_thick promedio, no hydro_thick
+    from lipid_types import LIPID_TYPES
+    hg_mean = (
+        sum(LIPID_TYPES[k].hg_thick * f for k, f in membrane.comp_outer.items()
+            if k in LIPID_TYPES)
+        if membrane.comp_outer else 9.0
+    )
+    hg_half_o = (g.z_outer - hg_mean / 2.0) / 10.0
+    hg_half_i = (g.z_inner + hg_mean / 2.0) / 10.0
 
     labels = np.zeros((bins_xy, bins_xy, bins_z), dtype=np.uint8)
     for iz, z in enumerate(cz):

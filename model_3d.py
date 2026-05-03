@@ -1,48 +1,27 @@
 """
 model_3d.py
-===========
-Modelo volumetrico 3D fisicamente completo de la bicapa lipidica.
+Modelo 3D de densidad electrónica de la bicapa lipídica.
 
-Construye un volumen 3D donde cada voxel tiene densidad electronica
-calculada a partir de las contribuciones atomicas de cada grano CG,
-incorporando:
+Genera un volumen 3D en el que cada voxel representa densidad electrónica
+derivada de la composición y organización de la membrana.
 
-  1. DENSIDAD ELECTRONICA POR ESPECIE — cabezas polares (P, N, O)
-     dispersan mas electrones que colas acil (C, H). Valores por especie
-     de Nagle & Tristram-Nagle 2000 y Kucerka et al. 2008.
+Incluye:
+  1. Densidad por tipo de cabeza y cola (P, N, O vs C, H)
+  2. Efecto de insaturaciones en el empaquetamiento de colas
+  3. Diferencias Lo vs Ld (rafts vs fase fluida)
+  4. Asimetría entre monocapas
+  5. Enriquecimiento local en PIPs
+  6. Corrección por fluctuaciones de curvatura (Helfrich)
 
-  2. EFECTO DE LAS INSATURACIONES — los dobles enlaces cis introducen
-     kinks geometricos que reducen la densidad local de empaquetamiento
-     en la zona del doble enlace. POPC (C18:1) tiene menos densidad de
-     cola que SM (C24:0) en la misma region Z.
+El resultado es un volumen MRC (55×55×80, ~9 Å/voxel) compatible con
+ChimeraX, IMOD y PolNet.
 
-  3. CONTRASTE LO VS LD — los dominios raft (SM, CHOL, GM1) tienen
-     colas mas densas por ser saturadas y compactas. Los dominios fluidos
-     (POPC, POPE) tienen menor densidad de cola por las insaturaciones.
-
-  4. ASIMETRIA ENTRE MONOCAPAS — la diferencia composicional entre
-     monocapa externa (SM/CHOL/GM1) e interna (POPE/POPS/PIPs) se
-     refleja en perfiles de densidad electronica distintos para cada cara.
-
-  5. SEÑAL DE PIPs — los fosfoinositidos tienen la cabeza mas densa
-     (hasta 0.498 e/A3 para PIP3 vs 0.458 para POPC) por el mayor
-     numero de grupos fosfato con electronegatividad alta. Su cluster
-     en la monocapa interna produce una senal diferencial detectable.
-
-  6. FLUCTUACIONES HELFRICH — el campo de curvatura termica se aplica
-     de forma coherente: la densidad en cada bin Z se calcula relativa
-     al plano medio local h(x,y), eliminando el efecto de la ondulacion
-     global y centrando la bicapa en cada columna.
-
-El resultado es un volumen MRC de 55x55x80 voxels a 9 A/voxel que
-puede importarse directamente en UCSF ChimeraX, IMOD o PolNet.
-
-Referencias:
-  Nagle & Tristram-Nagle, BBA 2000 [densidad electronica]
-  Kucerka et al., Biophys. J. 2008 [ED por especie]
-  Piggot et al., JCTC 2017 [S_CH, insaturaciones]
-  Chaisson et al., JCIM 2025 [interdigitacion]
-  Martinez-Sanchez et al., IEEE TMI 2024 [PolNet, formato MRC]
+Referencias principales:
+    [4]  Helfrich 1973 – elasticidad de membranas y fluctuaciones de curvatura en bicapas lipídicas
+    [11] Kučerka et al. 2008 – determinación experimental de espesores y áreas por lípido en bicapas
+    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [18] Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica
+    [20] Piggot et al. 2017 – cálculo de parámetros de orden acil (S_CH) en simulaciones lipídicas
 """
 
 from __future__ import annotations
@@ -72,45 +51,42 @@ def _model3d_dir():
     return MODEL3D_DIR
 
 
-# ── Factor de reduccion de densidad por insaturacion ─────────────────
+# Factor de reduccion de densidad por insaturacion
 # Cada doble enlace cis reduce la densidad de empaquetamiento local
-# porque el kink geometrico crea espacio vacio entre cadenas adyacentes.
-# Efecto estimado de ~3-5% de reduccion por doble enlace (Piggot 2017).
 UNSATURATION_PENALTY = 0.035
 
 
 def _tail_density_with_unsaturation(lipid_name: str, z_frac: float) -> float:
     """
-    Densidad electronica de un segmento de cola en funcion de z_frac [0,1].
+    Densidad electronica de una cola lipidica en funcion de z_frac [0,1].
 
-    z_frac = 0: inicio de la cola (glicerol)
-    z_frac = 1: extremo de la cola (metilo terminal)
+    z_frac = 0 inicio en glicerol
+    z_frac = 1 extremo metilo terminal
 
-    Modela tres efectos fisicos:
+    Incluye tres efectos principales
 
-    1. INSATURACIONES (Piggot 2017): cada doble enlace reduce la densidad
-       local ~3.5% por el kink geometrico cis que crea espacio entre cadenas.
-       POPC (1 db en C9 de sn2): depresion central.
-       PIPs (4 db en sn2):      depresion marcada en cola aracidonica.
-       SM/CHOL (0 db):         sin reduccion, densidad uniforme.
+    1 insaturaciones
+       cada doble enlace reduce la densidad local ~3.5 por kinks cis
+       POPC depresion en centro de sn2
+       PIPs depresion mas acusada por multiples dobles enlaces
+       SM y CHOL sin reduccion apreciable
 
-    2. GRADIENTE AXIAL DEL COLESTEROL (Nagle & Tristram-Nagle 2000):
-       El anillo esteroide rigido (z_frac 0-0.45) tiene mayor densidad
-       que la cadena isooctilo flexible (z_frac 0.45-1.0).
-       Anillo:    ~0.302 e/A3 (3 ciclos fusionados, compactos)
-       Isooctilo: ~0.280 e/A3 (ramificado, menos empaquetado)
-       Esta diferencia axial es detectable en perfiles de ED experimentales.
+    2 colesterol
+       perfil axial diferenciado
+       anillo esteroide mas denso que la cola isooctilo
+       anillo ~0.302 e A3
+       cola ~0.280 e A3
 
-    3. PLASMALOGENOS (PlsPE): enlace vinil-eter en sn1 sin carbonilo.
-       El segmento inicial (z_frac < 0.1) tiene menor ED que POPE
-       porque falta el grupo O del enlace ester.
+    3 plasmalogenos
+       ausencia de carbonilo en sn1 reduce densidad inicial
+       z_frac < 0.1 menor ED que fosfolipidos ester convencionales
     """
     from lipid_types import LIPID_TYPES
     lt = LIPID_TYPES.get(lipid_name)
     if lt is None:
         return ELECTRON_DENSITY["tail_fluid"]
 
-    # CASO ESPECIAL: gradiente axial del colesterol
+    # Caso raro: gradiente axial del colesterol
     if lipid_name == "CHOL":
         # Anillo esteroide rigido (segmentos 0-4): alta densidad
         # Cadena isooctilo (segmentos 5-9): menor densidad
@@ -151,35 +127,10 @@ def build_physical_volume(
     """
     Construye el volumen 3D de densidad electronica fisicamente completo.
 
-    El volumen captura:
-    - Patron dark-bright-dark de la bicapa (cabezas-colas-cabezas)
-    - Contraste entre dominios Lo y Ld por diferencias de empaquetamiento
-    - Señal de PIPs en monocapa interna (mayor densidad de cabeza)
-    - Efecto de insaturaciones en colas acil
-    - Asimetria entre monocapas
-    - Fluctuaciones Helfrich corregidas por plano medio local
-
-    Parametros
-    ----------
-    bins_xy : int
-        Resolucion lateral (default 55 → 9 A/voxel para parche de 50 nm)
-    bins_z : int
-        Resolucion axial (default 80 → mayor resolucion en Z que en XY
-        para capturar bien el perfil de la bicapa)
-    voxel_angstrom : float
-        Tamano de voxel declarado en el MRC. A 9 A es compatible con
-        PolNet (10 A) y tiene mayor fidelidad en Z.
-    sigma_xy, sigma_z : float
-        Suavizado gaussiano en voxels. Simula la PSF del microscopio.
-
-    Retorna
-    -------
-    (vol, labels, stats)
-        vol    : array (bins_xy, bins_xy, bins_z), float32, en e/A3
-        labels : array (bins_xy, bins_xy, bins_z), uint8
-                 0=agua, 1=cabeza ext, 2=nucleo Lo, 3=nucleo Ld,
-                 4=cabeza int, 5=PIP cluster
-        stats  : dict con metricas fisicas del volumen
+    El volumen captura el patron dark-bright-dark de la bicapa (cabezas-colas-cabezas),
+    el contraste entre dominios Lo y Ld, la señal de PIPs en la monocapa interna,
+    el efecto de las insaturaciones en colas acil, la asimetria entre monocapas
+    y las fluctuaciones de Helfrich corregidas por plano medio local.
     """
     g = membrane.geometry
     z_mid_grid = midplane_map(membrane, bins=bins_xy)
@@ -257,13 +208,11 @@ def build_physical_volume(
                         if labels[ix, iy, iz2] == 0:
                             labels[ix, iy, iz2] = 2 if l.in_raft else 3
 
-    # ── Proteinas transmembrana (perturbaciones no diferenciadas) ──────────
+    # Proteinas transmembrana (perturbaciones no diferenciadas)
     # Las proteinas se modelan como cilindros de densidad electronica
-    # intermedia (~0.40 e/A3) que atraviesan la bicapa de extremo a extremo.
-    # Esta densidad es mayor que las colas (0.29-0.31) pero menor que las
-    # cabezas (0.44-0.50), reproduciendo el contraste de proteinas en cryo-ET.
-    # Referencia: Singer & Nicolson 1972 (modelo de mosaico fluido).
-    ED_PROTEIN = 0.400  # densidad tipica de proteina transmembrana en e/A3
+    # intermedia sin categorizar y que atraviesan la bicapa de extremo 
+    # a extremo. No modelado directamente, solo considerado para realismo.
+    ED_PROTEIN = 0.400
     if hasattr(membrane, "perturbations") and membrane.perturbations:
         for pert in membrane.perturbations:
             px, py = pert["pos"][0] / membrane.Lx, pert["pos"][1] / membrane.Ly
@@ -420,13 +369,14 @@ def plot_physical_model(
         3: "#3a86ff",  # nucleo Ld
         4: "#fb8500",  # cabeza int
         5: "#9b5de5",  # PIP cluster
+        6: "#ffffff",  # proteina transmembrana
     }
 
     mid_y = bins_xy // 2
     mid_x = bins_xy // 2
 
     with plt.rc_context(PLT):
-        fig, axes = plt.subplots(2, 3, figsize=(20, 12))
+        fig, axes = plt.subplots(2, 3, figsize=(20, 15))
         fig.suptitle(
             "Modelo 3D fisico de la bicapa lipidica — seed=%d\n"
             "Densidad electronica con insaturaciones, fases Lo/Ld y PIPs"
@@ -438,7 +388,7 @@ def plot_physical_model(
         slc_xz = vol[:, mid_y, :]
         im = ax.imshow(slc_xz.T, origin="lower", cmap="gray",
                        extent=ext_xz, aspect="auto")
-        plt.colorbar(im, ax=ax, shrink=0.85, label="e/Å³")
+        plt.colorbar(im, ax=ax, shrink=0.85, label="$e \\cdot \\AA^{-3}$")
         ax.axhline(g.z_outer/10 - stats["z_half_nm"]*0, color="#2dc653",
                    lw=1.2, ls="--", alpha=0.85, label="Cabezas ext")
         ax.axhline(g.z_inner/10, color="#fb8500",
@@ -452,7 +402,7 @@ def plot_physical_model(
         slc_yz = vol[mid_x, :, :]
         im2 = ax.imshow(slc_yz.T, origin="lower", cmap="gray",
                         extent=ext_yz, aspect="auto")
-        plt.colorbar(im2, ax=ax, shrink=0.85, label="e/Å³")
+        plt.colorbar(im2, ax=ax, shrink=0.85, label="$e \\cdot \\AA^{-3}$")
         ax.set_xlabel("Y (nm)"); ax.set_ylabel("Z relativo (nm)")
         ax.set_title("Slice YZ — Segunda vista transversal\nAsimetria cabezas ext/int visible")
 
@@ -470,7 +420,7 @@ def plot_physical_model(
         ax.axvspan(0.44, 0.50, alpha=0.12, color="#2dc653", label="Ref cabezas")
         ax.axvline(ELECTRON_DENSITY["water"], color="#888888", lw=0.8, ls=":",
                    alpha=0.7, label="Agua (0.334)")
-        ax.set_xlabel("Densidad electronica (e/Å³)")
+        ax.set_xlabel("Densidad electronica ($e \\cdot \\AA^{-3}$)")
         ax.set_ylabel("Z (nm)")
         ax.set_title("Perfil 1D — ED a lo largo del eje Z\nPatron dark-bright-dark cuantificado")
         ax.legend(fontsize=7.5, loc="upper left")
@@ -481,7 +431,7 @@ def plot_physical_model(
         raft_map = raft_fraction_map(membrane, membrane.outer_leaflet, bins=bins_xy)
         im3 = ax.imshow(head_proj.T, origin="lower", cmap="gray",
                         extent=ext_xy, aspect="equal")
-        plt.colorbar(im3, ax=ax, shrink=0.85, label="ED max (e/Å³)")
+        plt.colorbar(im3, ax=ax, shrink=0.85, label="ED max ($e \\cdot \\AA^{-3}$)")
         cs = ax.contour(np.linspace(0, Lx, bins_xy),
                         np.linspace(0, Ly, bins_xy),
                         raft_map.T, levels=[0.4], colors=["#e63946"],
@@ -531,23 +481,27 @@ def plot_physical_model(
         im5 = ax.imshow(td_smooth.T, origin="lower", cmap="RdBu",
                         extent=ext_xy, aspect="equal",
                         vmin=td_smooth.min(), vmax=td_smooth.max())
-        plt.colorbar(im5, ax=ax, shrink=0.85, label="ED cola (e/Å³)")
+        plt.colorbar(im5, ax=ax, shrink=0.85, label="ED cola ($e \\cdot \\AA^{-3}$)")
         ax.set_xlabel("X (nm)"); ax.set_ylabel("Y (nm)")
         ax.set_title("Densidad de cola — Efecto insaturaciones\nRojo=saturada (Lo/SM) | Azul=insaturada (Ld/POPC)")
 
         patches_leyenda = [
-            mpatches.Patch(facecolor="#2dc653", label="Cabezas ext (%.3f e/Å³)" % stats["ed_head_mean"]),
-            mpatches.Patch(facecolor="#e63946", label="Nucleo Lo (%.3f e/Å³)" % stats["ed_tail_Lo"]),
-            mpatches.Patch(facecolor="#3a86ff", label="Nucleo Ld (%.3f e/Å³)" % stats["ed_tail_Ld"]),
-            mpatches.Patch(facecolor="#9b5de5", label="PIPs (%.3f e/Å³)" % stats["ed_pip"]),
+            mpatches.Patch(facecolor="#2dc653", label="Cabezas ext (%.3f $e \\cdot \\AA^{-3}$)" % stats["ed_head_mean"]),
+            mpatches.Patch(facecolor="#e63946", label="Nucleo Lo (%.3f $e \\cdot \\AA^{-3}$)" % stats["ed_tail_Lo"]),
+            mpatches.Patch(facecolor="#3a86ff", label="Nucleo Ld (%.3f $e \\cdot \\AA^{-3}$)" % stats["ed_tail_Ld"]),
+            mpatches.Patch(facecolor="#9b5de5", label="PIPs (%.3f $e \\cdot \\AA^{-3}$)" % stats["ed_pip"]),
             mpatches.Patch(facecolor="#f0f4ff", edgecolor="#aaa",
-                           label="Agua (%.3f e/Å³)" % stats["ed_water"]),
+                           label="Agua (%.3f $e \\cdot \\AA^{-3}$)" % stats["ed_water"]),
+            mpatches.Patch(facecolor="#ffffff", edgecolor="#555",
+                           label="Proteina TM (%d obj., %.3f $e \\cdot \\AA^{-3}$)" % (
+                               stats.get("n_protein_objects", 0),
+                               stats.get("ed_protein", 0.400))),
         ]
         
-        fig.legend(handles=patches_leyenda, loc="lower center", ncol=5,
-                   fontsize=8.5, frameon=True, bbox_to_anchor=(0.5, 0.0))
+        fig.legend(handles=patches_leyenda, loc="lower center", ncol=3,
+                   fontsize=8.5, frameon=True, bbox_to_anchor=(0.5, 0.02))
 
-        plt.tight_layout(rect=[0, 0.05, 1, 1])
+        plt.subplots_adjust(left=0.06, right=0.96, top=0.93, bottom=0.11, hspace=0.55, wspace=0.35)
         path = os.path.join(save_dir, "model3d_seed%04d.png" % membrane.seed)
         fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)

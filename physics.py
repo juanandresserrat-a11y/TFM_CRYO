@@ -1,18 +1,17 @@
 """
 physics.py
-==========
 Física de la bicapa: curvatura Helfrich y generación de cadenas acil.
 
 Funciones puras (sin estado): reciben parámetros y devuelven resultados.
 No dependen de la clase BicapaCryoET, por lo que pueden probarse
 de forma independiente.
 
-Referencias:
-  [4]  Helfrich, Z. Naturforsch. C 1973 – energía elástica de membrana
-  [5]  Pinigin, Membranes 2022 – espectro de fluctuaciones
-  [6]  Chakraborty et al. PNAS 2020 – kc dependiente de composición
-  [7]  Piggot et al. J. Chem. Theory Comput. 2017 – parámetro S_CH
-  [2]  Smith et al. LiveCoMS 2019 – kinks en dobles enlaces
+Referencias principales:
+    [3]  Chakraborty et al. 2020 – dependencia del módulo de bending (kc) con la composición lipídica de la membrana
+    [10] Helfrich 1973 – energía elástica de membranas y descripción de la curvatura en bicapas
+    [20] Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
+    [21] Pinigin 2022 – espectro de fluctuaciones de membrana y parámetros elásticos efectivos
+    [26] Smith et al. 2019 – modelado de kinks en cadenas acil y geometría de dobles enlaces en lípidos
 """
 
 from __future__ import annotations
@@ -39,20 +38,16 @@ def bending_modulus_from_composition(
     comp_inner: Dict[str, float],
 ) -> float:
     """
-    Calcula el módulo de bending kc (kBT·nm²) a partir de la
-    composición de ambas monocapas.
+    Calcula el módulo de bending kc (kBT·nm²) a partir de la composición
+    lipídica de ambas monocapas.
 
-    CHOL y SM condensan las cadenas acil, aumentando kc [6].
-    Rango resultante: 18–45 kBT·nm², coherente con Pinigin 2022 [5].
+    La presencia de colesterol y esfingomielina incrementa la rigidez de
+    la membrana al condensar el empaquetamiento de las cadenas acilo.
 
-    Parametros
-    ----------
-    comp_outer, comp_inner : dict {nombre_lipido: fraccion}
-
-    Retorna
-    -------
-    float
-        kc en kBT·nm².
+    comp_outer : dict
+        Composición de la monocapa externa {lipido: fracción}
+    comp_inner : dict
+        Composición de la monocapa interna {lipido: fracción}
     """
     def leaflet_kc(comp):
         return sum(_KC_WEIGHTS.get(k, 1.0) * f for k, f in comp.items())
@@ -69,30 +64,9 @@ def generate_helfrich_map(
     bins: int = 64,
 ) -> np.ndarray:
     """
-    Genera un campo de alturas h(x,y) con espectro de Helfrich completo:
+    Campo de alturas h(x,y) con espectro de Helfrich.
 
-        <|h_q|²> = kBT / (kc·q⁴ + σ·q²)
-
-    donde kc controla los modos de alta q (bending) y σ suprime
-    los modos de larga longitud de onda (tensión superficial) [4, 5].
-
-    Parametros
-    ----------
-    Lx_angstrom : float
-        Tamaño lateral del sistema en Å.
-    kc : float
-        Módulo de bending en kBT·nm².
-    sigma : float
-        Tensión superficial en kBT/nm².
-    rng : numpy Generator
-        Generador aleatorio con semilla fijada.
-    bins : int
-        Resolución del campo (bins × bins).
-
-    Retorna
-    -------
-    np.ndarray, shape (bins, bins)
-        Campo de alturas en Å.
+    kc controla bending, σ la tensión superficial.
     """
     L_nm = Lx_angstrom / 10.0
     qx = 2.0 * np.pi * np.fft.fftfreq(bins, d=L_nm / bins)
@@ -128,53 +102,14 @@ def generate_tail(
     nseg: int = 9,
 ) -> Tuple[List[np.ndarray], float]:
     """
-    Genera una cadena acil como lista de nseg+1 puntos 3D.
+    Genera una cadena acil como lista de puntos 3D.
 
-    Implementa el modelo de kink en el doble enlace según Smith et al.
-    LiveCoMS 2019 [2] y calcula S_CH por segmento C–C según Piggot et
-    al. J. Chem. Theory Comput. 2017 [7].
-
-    Parametros
-    ----------
-    start : np.ndarray, shape (3,)
-        Punto de inicio de la cadena (glicerol desplazado lateralmente).
-    nc : int
-        Número de carbonos de la cadena.
-    ndb : int
-        Número de dobles enlaces.
-    dbpos : int o None
-        Posición del doble enlace (carbono) a lo largo de la cadena.
-    direction : int
-        +1 para monocapa interna (creciente en z), -1 para externa.
-    tilt : float
-        Ángulo de inclinación respecto a la normal (radianes).
-    phi : float
-        Ángulo azimutal (radianes).
-    phase : str
-        "gel" (desorden gaussiano 0.25 Å) | "fluid" (0.55 Å).
-        CORRECCION: reducido de 0.80 a 0.55 para evitar rebotes excesivos
-        que _sanitize_tail tenia que corregir agresivamente, dejando colas
-        demasiado rectas y cortas. A 0.55 hay suficiente desorden para
-        distinguir fluido de gel pero sin violar la progresion monotona.
-    rng : Generator
-        Generador aleatorio con semilla.
-    nseg : int
-        Número de segmentos (puntos = nseg + 1).
-
-    Retorna
-    -------
-    (points, S_CH_mean)
-        points : list[np.ndarray]  — puntos 3D de la cadena
-        S_CH_mean : float          — S_CH medio de todos los segmentos
+    Implementa el kink en dobles enlaces y calcula
+    el parámetro de orden S_CH por segmento.
     """
     L = nc * 1.26
     dz_base = direction * L / nseg * np.cos(tilt)
     dr = L / nseg * np.sin(tilt)
-    # CORRECCION: disorder reducido de 0.80 a 0.55 para fase fluida
-    # El valor anterior (0.80) generaba demasiado ruido transversal que
-    # hacia que los segmentos "rebotaran" en Z, forzando a _sanitize_tail
-    # a truncar la cola agresivamente. Con 0.55 las colas fluidas mantienen
-    # su curvatura natural sin violar la progresion monotona en Z.
     disorder = 0.25 if phase == "gel" else 0.55
 
     points = [start.copy()]

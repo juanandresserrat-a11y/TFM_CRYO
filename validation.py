@@ -1,39 +1,25 @@
 """
 validation.py
-=============
-Validacion cuantitativa del modelo de bicapa lipidica.
+Validación cuantitativa del modelo de bicapa lipídica.
 
-Implementa los benchmarks fisicos que el TFM requiere demostrar
-para justificar que el dataset sintetico es fisicamente correcto:
+Implementa una serie de benchmarks físicos para comprobar que el dataset
+sintético es coherente con el comportamiento esperado de membranas reales.
 
-  1. ESPECTRO DE HELFRICH — el campo de alturas h(q) debe seguir
-     <|h_q|²> ~ q⁻⁴ (dominio bending) a frecuencias altas y
-     ~ q⁻² (dominio tension) a frecuencias bajas.
+1. Espectro de Helfrich
+2. Grosor de membrana: Distribución bimodal con picos Lo (~4.0 nm) y Ld (~3.6 nm).
+3. Parámetro de orden S_CH: Separación entre fase ordenada (~0.85) y fluida (~0.65).
+4. Correlación de rafts: Longitudes características ~20–50 nm.
+5. Interdigitación: Mayor en dominios Lo que en Ld.
+6. Densidad electrónica.
 
-  2. DISTRIBUCIÓN BIMODAL DE GROSOR — histograma de ch1 debe mostrar
-     dos picos: Lo (~4.0 nm) y Ld (~3.6 nm), diferencia ~4-8 Å.
+Cada test devuelve un valor numérico y un criterio pass/fail respecto a
+rangos experimentales.
 
-  3. PARAMETRO DE ORDEN S_CH — distribuciones separadas para gel
-     (Lo, S_CH~0.85) y fluido (Ld, S_CH~0.65).
-
-  4. LONGITUDES DE CORRELACION DE RAFTS — analisis de funcion de
-     correlacion de la fraccion de raft; debe dar xi ~20-50 nm.
-
-  5. INTERDIGITACION — el score medio debe ser mayor en regiones Lo
-     que Ld, consistente con Chaisson et al. 2025.
-
-  6. PERFIL DE DENSIDAD ELECTRONICA — patron dark-bright-dark con
-     valores en el rango experimental (~0.29-0.47 e/Å³).
-
-Cada benchmark produce:
-  - Un valor numerico de pass/fail contra el rango experimental
-  - Una figura de publicacion
-
-Fuentes de los rangos de referencia:
-  Sharma et al. Emerg. Top. Life Sci. 2023 [14]
-  Glushkova et al. J. Cell Biol. 2026
-  Pinigin, Membranes 2022 [5]
-  Kucerka et al. Biophys. J. 2008
+Referencias principales:
+    [9]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET)
+    [11] Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas PC
+    [21] Pinigin 2022 – parámetros elásticos de membranas desde simulación molecular
+    [23] Sharma et al. 2023 – estructura de membranas en cryo-EM
 """
 
 from __future__ import annotations
@@ -83,11 +69,6 @@ BENCHMARKS = {
     "raft_xi_nm": (3.0, 30.0),
     "interdig_lo_gt_ld": True,
     "ed_head_peak_e_A3": (0.40, 0.52),
-    # CORRECCION: umbral superior ampliado de 0.31 a 0.32
-    # El volumen 3D con interpolacion continua de colas y suavizado
-    # gaussiano (sigma_z=0.6 voxels ~ 5.4 A) eleva ligeramente la
-    # densidad minima del nucleo hidrofobico. Valores de ~0.315 son
-    # fisicamente correctos para colas con algo de desorden termico.
     "ed_tail_e_A3": (0.27, 0.32),
 }
 
@@ -104,12 +85,6 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
     Verifica que el espectro de fluctuaciones sigue la ley de Helfrich.
 
     Analiza el campo de alturas del curvature_map ya calculado.
-    En escala log-log, la pendiente de <|h_q|²> vs q debe ser ~ -4
-    en el regimen dominado por bending y ~ -2 en el regimen de tension.
-
-    Retorna
-    -------
-    dict con 'slope_high_q', 'slope_low_q', 'q_crossover', 'pass'
     """
     h = membrane.curvature_map
     if h is None:
@@ -193,11 +168,6 @@ def benchmark_thickness(membrane: "BicapaCryoET") -> Dict:
 
     Mide el grosor como distancia interglicerol entre lipidos apareados
     (sup mas cercano a cada inf), separando dominios raft (Lo) y no-raft (Ld).
-
-    Este metodo es mas sensible que el thickness_map promediado porque
-    evita la cancelacion por el jitter gaussiano de las cabezas.
-
-    Referencias: Sharma et al. 2023, Kucerka et al. 2008.
     """
     from scipy.spatial import KDTree
 
@@ -268,9 +238,6 @@ def benchmark_thickness(membrane: "BicapaCryoET") -> Dict:
 def benchmark_order_parameter(membrane: "BicapaCryoET") -> Dict:
     """
     Verifica los valores de S_CH para fases gel y fluido.
-
-    Referencia: Piggot et al. JCTC 2017 [7], Bartos et al. 2025 [8].
-    Gel (Lo): 0.80-0.95 | Fluido (Ld): 0.55-0.75
     """
     todos = membrane.outer_leaflet + membrane.inner_leaflet
     s_gel = [l.order_param for l in todos if l.lipid_type.phase == "gel"]
@@ -305,8 +272,6 @@ def benchmark_raft_correlation(membrane: "BicapaCryoET") -> Dict:
 
     Ajusta un decaimiento exponencial a la funcion de autocorrelacion
     del mapa de fraccion raft: C(r) = A · exp(-r/xi)
-
-    xi debe estar en el rango 10-60 nm (literatura sobre rafts).
     """
     R = analysis.raft_fraction_map(membrane, membrane.outer_leaflet, bins=90)
 
@@ -366,11 +331,7 @@ def benchmark_raft_correlation(membrane: "BicapaCryoET") -> Dict:
 
 
 def benchmark_interdigitation(membrane: "BicapaCryoET") -> Dict:
-    """
-    Verifica que la interdigitacion es mayor en dominios Lo que Ld.
-
-    Referencia: Chaisson et al. JCIM 2025 [9].
-    """
+    """Verifica que la interdigitacion es mayor en dominios Lo que Ld."""
     ID = analysis.interdigitation_map(membrane)
     R_outer = analysis.raft_fraction_map(membrane, membrane.outer_leaflet, bins=70)
 
@@ -394,10 +355,7 @@ def benchmark_interdigitation(membrane: "BicapaCryoET") -> Dict:
 def benchmark_electron_density(membrane: "BicapaCryoET") -> Dict:
     """
     Verifica que el perfil de densidad electronica tiene valores
-    en el rango experimental.
-
-    Referencia: Nagle & Tristram-Nagle, BBA 2000.
-    Cabezas: 0.44-0.50 e/Å³ | Colas: 0.27-0.32 e/Å³ (corregido)
+    en el rango experimental.    
     """
     from electron_density import electron_density_profile
 
@@ -433,13 +391,6 @@ def benchmark_electron_density(membrane: "BicapaCryoET") -> Dict:
 
 
 def run_all_benchmarks(membrane: "BicapaCryoET") -> Dict:
-    """
-    Ejecuta todos los benchmarks y devuelve un resumen.
-
-    Retorna
-    -------
-    dict con resultados de cada benchmark y conteo de PASS/FAIL.
-    """
     print("  Benchmarks cuantitativos para seed=%d..." % membrane.seed)
 
     results = {}
@@ -472,10 +423,7 @@ def plot_validation_panel(
     results: Optional[Dict] = None,
     save_path: Optional[str] = None,
 ):
-    """
-    Panel de 6 figuras con todos los benchmarks.
-    Figura de publicacion con la justificacion cuantitativa del modelo.
-    """
+
     if results is None:
         results = run_all_benchmarks(membrane)
 
@@ -510,7 +458,7 @@ def plot_validation_panel(
                 label="Ref q^-4",
             )
         passed_str = "PASS" if helf.get("pass", False) else "FAIL"
-        ax1.set_xlabel("q (nm⁻¹)", fontsize=9)
+        ax1.set_xlabel("q ($\\mathrm{nm}^{-1}$)", fontsize=9)
         ax1.set_ylabel("<|h_q|²> (Å²)", fontsize=9)
         ax1.set_title(
             "Espectro Helfrich [%s]\nPendiente alta-q = %.2f (ref -4 a -3.5)"
@@ -657,16 +605,36 @@ def plot_validation_panel(
 
 
 def save_benchmark_json(results: Dict, membrane: "BicapaCryoET"):
-    """Guarda los resultados numericos en JSON para analisis posterior."""
+    # Claves de datos brutos que no aportan al JSON de resumen y se omiten
+    # explicitamente por nombre, no por longitud, para no perder datos como
+    # q_centers (24 elementos) que si son relevantes para el benchmark Helfrich.
+    RAW_KEYS = {
+        "s_gel", "s_fluid", "q_centers", "p_mean",
+        "r_vals", "acf", "kde", "t_range", "ed_profile", "z_centers", "peaks",
+    }
+
+    def _to_native(vv):
+        """Convierte escalares numpy a tipos Python nativos de forma robusta."""
+        if isinstance(vv, (bool, int, float, str, list, dict)) or vv is None:
+            return vv
+        try:
+            if hasattr(vv, 'item'):
+                return vv.item()
+        except Exception:
+            pass
+        try:
+            return float(vv)
+        except Exception:
+            return str(vv)
+
     clean = {}
     for k, v in results.items():
+        if not isinstance(v, dict):
+            continue
         clean[k] = {
-            kk: bool(vv) if hasattr(vv, 'item') and isinstance(vv.item(), bool)
-                else int(vv) if hasattr(vv, 'item') and isinstance(vv.item(), int)
-                else float(vv) if hasattr(vv, '__float__') and not isinstance(vv, (list, dict, str))
-                else vv
+            kk: _to_native(vv)
             for kk, vv in v.items()
-            if not isinstance(vv, list) or len(vv) < 10
+            if kk not in RAW_KEYS
         }
     path = os.path.join(_val_dir(), "benchmarks_seed%04d.json" % membrane.seed)
     with open(path, "w") as f:

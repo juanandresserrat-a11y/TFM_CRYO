@@ -1,51 +1,42 @@
 """
 export_positions.py
-===================
 Exportacion de posiciones 3D de todos los granos CG de la bicapa.
 
-Este modulo genera los archivos de posiciones que PolNet necesita
-para insertar membranas con composicion lipidica conocida dentro
-de un tomograma sintetico. Produce dos formatos:
+Genera tres formatos de salida:
 
-  1. PDB  — formato estandar de biologia estructural.
-            Cada grano CG (cabeza, glicerol, segmento de cola) es
-            un ATOM con coordenadas X,Y,Z en Angstrom.
-            Compatible con PyMOL, UCSF ChimeraX y VMD.
+  1. PDB
+     Cada grano coarse-grained (cabeza, glicerol, colas) se guarda
+     como un ATOM con coordenadas X,Y,Z en Å.
+     Compatible con PyMOL, ChimeraX y VMD.
 
-  2. CSV  — tabla con una fila por grano, columnas:
-            lipid_id, lipid_type, leaflet, bead_type, bead_idx,
-            x, y, z, order_param, in_raft, is_pip
-            Formato directo para analisis en Python/R/Julia.
+  2. CSV
+     Tabla por grano con:
+       lipid_id, lipid_type, leaflet, bead_type, bead_idx,
+       x, y, z, order_param, in_raft, is_pip
 
-  3. PolNet particle list — formato propio de PolNet para
-            macromoleculas como puntos con orientacion:
-            type, label, x, y, z, q1, q2, q3, q4
-            Permite a PolNet colocar proteinas de membrana
-            alineadas con los lipidos ya posicionados.
+  3. PolNet particle list
+     Formato de puntos con orientación:
+       type, label, x, y, z, q1, q2, q3, q4
+     Permite insertar proteínas alineadas con la membrana.
 
-Resolucion espacial de las coordenadas:
-  - Las posiciones de cabeza/glicerol son continuas (sub-Angstrom)
-  - Cada segmento de cola mide ~2.24 A (nc*1.26 / nseg)
-  - Precision de float64: ~1e-15 A (irrelevante; el jitter
-    estocástico es de 0.25-1.75 A dependiendo de la fase)
+Escala espacial:
+  - Cabezas y glicerol: posiciones continuas sub-Å
+  - Colas: segmentos ~2.2 Å
+  - Float64 solo garantiza estabilidad numérica (no resolución física)
 
-Comparacion con formatos de PolNet:
-  - PolNet coloca macromoleculas como densidades MRC (10 A/voxel)
-  - Este archivo permite colocarlas como posiciones exactas
-  - Util para proteinas de membrana ancladas a lipidos especificos
+Relación con PolNet:
+  - PolNet usa densidades MRC (~10 Å/voxel)
+  - Este formato permite colocación exacta de partículas
+  - Útil para proteínas ancladas a lípidos específicos
 
-Curvatura de los parches simulados:
-  - Todas las simulaciones son parches PLANOS con ondulaciones
-    termicas de Helfrich (RMS ~3-5 A, equivalente a R_curv > 60 nm)
-  - Los parches representan fragmentos de membrana plasmatica en
-    condiciones de vitrificacion instantanea (cryo-ET)
-  - La curvatura de organulos (ER ~25 nm, vesiculas ~50 nm) queda
-    fuera del alcance de esta version del modelo y constituye una
-    linea de trabajo futuro
+Geometría del sistema:
+  - Parches planos con fluctuaciones térmicas tipo Helfrich
+  - RMS ~3–5 Å (radio de curvatura efectivo > 60 nm)
+  - Representa fragmentos de membrana plasmática vitrificada
+  - Curvaturas fuertes (orgánulos) no están modeladas
 
-Referencia PolNet:
-  Martinez-Sanchez et al. IEEE Trans. Med. Imaging 2024
-  doi:10.1109/TMI.2024.3398401
+Referencia principal:
+    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
 """
 
 from __future__ import annotations
@@ -100,21 +91,27 @@ def export_pdb(
     """
     Exporta todas las posiciones de granos CG en formato PDB.
 
-    Estructura del archivo:
-      - Cada lipido es un RESIDUO con su tipo como resName
-      - Cada grano (cabeza, glicerol, segmentos de cola) es un ATOM
-      - La cadena A es la monocapa externa (sup), B la interna (inf)
-      - El campo B-factor almacena el parametro de orden S_CH
-      - El campo occupancy es 1.0 para raft, 0.5 para no-raft
+    El archivo representa la bicapa como una estructura tipo proteína
+    para poder visualizarla en herramientas estándar como PyMOL o ChimeraX.
 
-    Limitacion PDB: coordenadas en Angstrom, max 99999 atomos por
-    cadena, max 9999 residuos (se usan indices ciclicos si se supera).
+    Estructura del archivo:
+      - Cada lípido se guarda como un residuo (resName indica el tipo de lípido)
+      - Cada grano (cabeza, glicerol y segmentos de cola) se escribe como un ATOM
+      - Cadena A = monocapa externa, cadena B = monocapa interna
+      - El B-factor almacena el parámetro de orden S_CH
+      - El campo occupancy se usa como indicador sencillo de estado:
+          1.0 → dominio raft
+          0.5 → resto de la membrana
+
+    Limitaciones del formato PDB:
+      - Coordenadas en Å
+      - Número máximo de átomos por cadena
+      - Número máximo de residuos por estructura (si se excede, se reutilizan índices)
 
     Parametros
-    ----------
-    wrap_periodic : bool
-        Si True, las coordenadas X,Y se envuelven al rango [0, Lx].
-        Recomendado para compatibilidad con visualizadores.
+      wrap_periodic : bool
+        Si es True, las coordenadas X e Y se envuelven al rango [0, Lx]
+        para que la membrana pueda visualizarse sin discontinuidades en bordes
     """
     if path is None:
         path = os.path.join(_pos_dir(), "bilayer_seed%04d.pdb" % membrane.seed)
@@ -217,18 +214,22 @@ def export_csv_positions(
     """
     Exporta todas las posiciones en formato CSV tabulado.
 
+    Cada fila representa un grano CG de la bicapa, lo que permite
+    analizar la estructura sin necesidad de cargar formatos moleculares
+    más complejos.
+
     Columnas:
-      lipid_id     — indice global del lipido (0-based)
-      lipid_type   — nombre de la especie (POPC, SM, etc.)
-      leaflet      — sup | inf
+      lipid_id     — índice global del lípido (0-based)
+      lipid_type   — especie lipídica (POPC, SM, etc.)
+      leaflet      — monocapa superior (sup) o inferior (inf)
       bead_type    — HEAD | GLYC | TAIL1_N | TAIL2_N
-      x, y, z      — coordenadas en Angstrom
-      order_param  — S_CH del lipido
+      x, y, z      — coordenadas en Å
+      order_param  — parámetro de orden S_CH
       in_raft      — 1 si pertenece a dominio Lo, 0 si no
-      is_pip       — 1 si es fosfoinositido, 0 si no
+      is_pip       — 1 si es fosfoinositido, 0 en caso contrario
       phase        — gel | fluid
 
-    Este formato permite analisis directo en pandas, R o Julia.
+    Este formato está pensado para análisis directo en pandas, R.
     """
     if path is None:
         path = os.path.join(
@@ -297,28 +298,25 @@ def export_polnet_particle_list(
     path: Optional[str] = None,
 ) -> str:
     """
-    Exporta las posiciones en el formato de lista de particulas de PolNet.
+    Exporta las posiciones en el formato de lista de partículas de PolNet.
 
-    PolNet usa este formato para macromoleculas colocadas en el tomograma.
-    Cada cabeza lipidica es una particula con posicion (x,y,z) y orientacion
-    expresada como cuaternion (q1,q2,q3,q4).
+    PolNet utiliza este formato para representar macromoléculas dentro del tomograma.
+    Aquí, cada cabeza lipídica se trata como una partícula con posición (x, y, z)
+    y orientación en forma de cuaternión (q1, q2, q3, q4).
 
-    La orientacion se calcula a partir del vector cabeza->glicerol,
-    que apunta hacia el interior de la bicapa (normal local del lipido).
+    La orientación se calcula a partir del vector cabeza→glicerol, que define la
+    dirección local del lípido y apunta aproximadamente hacia el interior de la bicapa.
 
-    Formato de columnas (compatible con PolNet CSV output):
-      type      — tipo de objeto (lipid_HEAD)
-      label     — nombre de especie lipidica
-      x, y, z   — coordenadas en Angstrom
-      q1,q2,q3,q4 — cuaternion de orientacion (unidad)
+    Formato de columnas (compatible con el CSV de PolNet):
+      type        — tipo de objeto (lipid_HEAD)
+      label       — especie lipídica
+      x, y, z     — coordenadas en Å
+      q1,q2,q3,q4 — cuaternión unitario de orientación
 
     Este archivo permite a PolNet:
-      1. Colocar proteinas de membrana alineadas con los lipidos
-      2. Generar subtomos alineados para subtomogram averaging
-      3. Verificar la densidad local de lipidos en el volumen
-
-    Referencia:
-      PolNet particle list spec: github.com/anmartinezs/polnet
+      1. Colocar proteínas de membrana alineadas con la geometría lipídica
+      2. Generar subtomos consistentes para subtomogram averaging
+      3. Evaluar la distribución local de lípidos en el volumen simulado
     """
     if path is None:
         path = os.path.join(
@@ -395,13 +393,7 @@ def export_all_positions(
     membrane: "BicapaCryoET",
     include_tails: bool = True,
 ) -> dict:
-    """
-    Exporta los tres formatos de posiciones en una sola llamada.
-
-    Retorna
-    -------
-    dict con rutas a 'pdb', 'csv', 'polnet'
-    """
+    
     print("  Exportando posiciones 3D para seed=%d..." % membrane.seed)
     return {
         "pdb":    export_pdb(membrane),

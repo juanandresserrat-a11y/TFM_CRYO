@@ -1,15 +1,6 @@
 """
-figures.py  –  v4  (publicación · formato artículo)
-=====================================================
+figures.py  
 Estándares tipográficos Nature / Biophysical Journal.
-Cambios v4:
-  • Sin "Fig.X" en el interior de los paneles
-  • Fig 1: ejes x/y corregidos (z en X, ED en Y) + límites reparados
-  • Fig 5: colormap armónico acero→crema→terracota, fondo neutro, sin PIPs
-  • Fig 6: colormap azul→verde bosque, inset mejorado
-  • Fig 7: solo barras limpias por especie, sin curva KDE inútil
-  • Fig 9: diseño sin solapamiento — fondo neutro + PIPs círculos coloreados
-           leyenda exterior, sin KDE contourf, sin marcadores de centroides
 """
 
 from __future__ import annotations
@@ -118,7 +109,7 @@ def _sim_fig_dir(seed):
     return d
 
 
-# ── Auxiliares de datos ───────────────────────────────────────────────────────
+# Auxiliares de datos
 
 def _ed_profile(membrane, vol):
     """Perfil 1D de ED promediado en XY. Devuelve (z_nm, ed) mismo len."""
@@ -167,12 +158,7 @@ def _thickness_dist(membrane):
 
 
 def _raft_map_smooth(membrane, bins=160, sigma=2.2):
-    """
-    Mapa suavizado de fracción Lo.
-    Sin umbral de densidad: todo el espacio se rellena.
-    Zonas sin lípidos → valor 0.0 (azul Ld puro).
-    No devuelve NaN ni máscaras separadas.
-    """
+    """Mapa suavizado de fracción Lo."""
     Hr = np.zeros((bins, bins))
     Ht = np.zeros((bins, bins))
     for lip in membrane.outer_leaflet:
@@ -211,7 +197,7 @@ def _order_map_smooth(membrane, bins=160, sigma=1.2):
     return result, mask
 
 
-# ── Auxiliares gráficos ───────────────────────────────────────────────────────
+# Auxiliares gráficos
 
 def _scalebar(ax, Lx, Ly, length_nm=10.0, color="#333333", lw=2.0,
               pos_frac=(0.05, 0.05)):
@@ -259,10 +245,7 @@ def _info_box(ax, text, loc="upper left", fs=7.5):
                       fc="white", ec="#bbbbbb", alpha=0.92, lw=0.6),
             zorder=15)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Fig 1: Perfil 1D de densidad electrónica
-# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_fig1_perfil_ED(membrane, vol, stats, dpi=300):
     seed = membrane.seed
@@ -283,7 +266,7 @@ def plot_fig1_perfil_ED(membrane, vol, stats, dpi=300):
                          where=ed_prof < 0.334, alpha=0.25,
                          color=C["tail"], label="Núcleo hidrofóbico")
         ax.axvline(0.334, color="#888888", lw=1.0, ls=":",
-                   label="Agua (0.334 e·Å⁻³)")
+                   label="Agua (0.334 $e \\cdot \\AA^{-3}$)")
         ax.axhline(g.z_outer / 10, color=C["head"], lw=1.0, ls="--", alpha=0.8,
                    label="Cabezas ext. z=%.2f nm" % (g.z_outer / 10))
         ax.axhline(g.z_inner / 10, color="#e67e22", lw=1.0, ls="--", alpha=0.8,
@@ -296,7 +279,7 @@ def plot_fig1_perfil_ED(membrane, vol, stats, dpi=300):
                 "D$_{HH}$=%.1f Å" % g.total_thick,
                 fontsize=9, color="#555555", va="center")
 
-        ax.set_xlabel("Densidad electrónica (e·Å⁻³)")
+        ax.set_xlabel("Densidad electrónica ($e \\cdot \\AA^{-3}$)")
         ax.set_ylabel("Posición axial Z (nm)")
         ax.set_title("Perfil 1D de densidad electrónica\n"
                      "Simulación %d | Patrón dark-bright-dark cryo-ET" % seed)
@@ -316,10 +299,7 @@ def plot_fig1_perfil_ED(membrane, vol, stats, dpi=300):
         print("  -> figuras/simulacion%04d/fig1_sim%04d_perfil_ED.png" % (seed, seed))
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Fig 2: Composición lipídica
-# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_fig2_composicion(membrane, dpi=300):
     seed = membrane.seed
@@ -439,8 +419,6 @@ def plot_fig2_composicion(membrane, dpi=300):
             ax2.axis("off")
             ax_tbl.axis("off")
 
-        _ref_footer(fig,
-            "Kučerka 2011  |  Daleke 2003  |  Di Paolo & De Camilli, Nature 2006")
         path = os.path.join(_sim_fig_dir(seed),
                             "fig2_sim%04d_composicion.png" % seed)
         fig.savefig(path, dpi=dpi)
@@ -448,10 +426,7 @@ def plot_fig2_composicion(membrane, dpi=300):
         print("  -> %s" % path)
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Fig 3: Espectro Helfrich
-# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_fig3_helfrich(membrane, dpi=300):
     seed  = membrane.seed
@@ -489,8 +464,6 @@ def plot_fig3_helfrich(membrane, dpi=300):
             "$\\sigma$ = %.4f $k_BT$·nm$^{-2}$\n"
             "RMS $h$ = %.2f Å" % (kc, sigma, membrane.curvature_map.std()),
             loc="lower left")
-        _ref_footer(fig,
-            "Helfrich, Z. Naturforsch. C 1973  |  Pinigin, Membranes 2022")
         fig.tight_layout(rect=[0, 0.03, 1, 1])
         path = os.path.join(_sim_fig_dir(seed),
                             "fig3_sim%04d_helfrich.png" % seed)
@@ -499,10 +472,7 @@ def plot_fig3_helfrich(membrane, dpi=300):
         print("  -> %s" % path)
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Fig 4: Distribución de grosor D_PP
-# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_fig4_grosor(membrane, stats, dpi=300):
     seed    = membrane.seed
@@ -542,8 +512,6 @@ def plot_fig4_grosor(membrane, stats, dpi=300):
         ax.set_xlabel("Grosor $D_{PP}$ cabeza–cabeza (Å)")
         ax.set_ylabel("Densidad de probabilidad (Å$^{-1}$)")
         ax.legend(loc="upper left", fontsize=7)
-        _ref_footer(fig,
-            "Sharma, ETLS 2023  |  Kučerka et al., Biophys. J. 2011")
         fig.tight_layout(rect=[0, 0.03, 1, 1])
         path = os.path.join(_sim_fig_dir(seed),
                             "fig4_sim%04d_grosor.png" % seed)
@@ -552,17 +520,9 @@ def plot_fig4_grosor(membrane, stats, dpi=300):
         print("  -> %s" % path)
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Fig 5: Mapa de fracción Lo — FIGURA PRINCIPAL
-# ─────────────────────────────────────────────────────────────────────────────
+# Fig 5: Mapa de fracción Lo
 
 def plot_fig5_mapa_raft(membrane, dpi=300):
-    """
-    Mapa 2D de fracción Lo — monocapa externa.
-    Sin manchas blancas: todo el espacio se rellena con valor 0.0 (azul Ld)
-    donde no hay datos suficientes. No hay NaN ni transparencias.
-    """
     seed = membrane.seed
     Lx = membrane.Lx / 10.0
     Ly = membrane.Ly / 10.0
@@ -612,9 +572,6 @@ def plot_fig5_mapa_raft(membrane, dpi=300):
         _info_box(ax,
             "%d dominio(s) Lo\nFracc. Lo = %.1f%%" % (n_rafts, lo_frac * 100),
             loc="upper left")
-        _ref_footer(fig,
-            "Lingwood & Simons, Science 2010  |  "
-            "Sezgin et al., Nat. Rev. Mol. Cell Biol. 2017")
 
         fig.tight_layout(rect=[0, 0.03, 1, 1])
         path = os.path.join(_sim_fig_dir(seed),
@@ -624,11 +581,10 @@ def plot_fig5_mapa_raft(membrane, dpi=300):
         print("  -> %s" % path)
     return path
 
+# Fig 6: Mapa de Parametro de Orden
+
 def plot_fig6_mapa_order(membrane, dpi=300):
-    """
-    Colormap: azul (bajo orden / Ld) → verde bosque (alto orden / Lo).
-    Inset: histograma KDE por fase sin barras redundantes.
-    """
+
     seed = membrane.seed
     Lx   = membrane.Lx / 10.0
     Ly   = membrane.Ly / 10.0
@@ -707,7 +663,6 @@ def plot_fig6_mapa_order(membrane, dpi=300):
         axins.legend(fontsize=5.5, loc="upper left", framealpha=0.9,
                      edgecolor="#cccccc", borderpad=0.3)
 
-        _ref_footer(fig, "Piggot et al., JCTC 2017  |  Marsh, BBA 2009")
         fig.tight_layout(rect=[0, 0.03, 1, 1])
         path = os.path.join(_sim_fig_dir(seed),
                             "fig6_sim%04d_mapa_order.png" % seed)
@@ -716,10 +671,7 @@ def plot_fig6_mapa_order(membrane, dpi=300):
         print("  -> %s" % path)
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Fig 7: Distribución radial de PIPs por especie (solo barras apiladas)
-# ─────────────────────────────────────────────────────────────────────────────
+# Fig 7: Distribución radial de PIPs por especie
 
 def plot_fig7_pip_radial(membrane, dpi=300):
     """
@@ -780,9 +732,6 @@ def plot_fig7_pip_radial(membrane, dpi=300):
                     fontsize=10, color="#888888")
 
         ax.set_title("Distribución radial de PIPs — monocapa interna", pad=5)
-        _ref_footer(fig,
-            "Di Paolo & De Camilli, Nature 2006  |  "
-            "McLaughlin et al., J. Cell Biol. 2002")
         fig.tight_layout(rect=[0, 0.03, 1, 1])
         path = os.path.join(_sim_fig_dir(seed),
                             "fig7_sim%04d_pip_radial.png" % seed)
@@ -791,10 +740,7 @@ def plot_fig7_pip_radial(membrane, dpi=300):
         print("  -> %s" % path)
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Fig 8: Tabla de parámetros físicos
-# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_fig8_parametros(membrane, stats, dpi=300):
     seed  = membrane.seed
@@ -924,9 +870,6 @@ def plot_fig8_parametros(membrane, stats, dpi=300):
         ax.legend(handles=handles, loc="upper center",
                   bbox_to_anchor=(0.5, 1.005), ncol=5,
                   fontsize=7, frameon=True, edgecolor="#cccccc")
-        _ref_footer(fig,
-            "Nagle 2000  |  Piggot 2017  |  Chaisson 2025  |  "
-            "Sharma 2023  |  Kučerka 2011")
         fig.subplots_adjust(left=0.04, right=0.96, top=0.94, bottom=0.03)
         path = os.path.join(_sim_fig_dir(seed),
                             "fig8_sim%04d_parametros.png" % seed)
@@ -935,18 +878,9 @@ def plot_fig8_parametros(membrane, stats, dpi=300):
         print("  -> %s" % path)
     return path
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Fig 9: Mapa integrado PIPs + balsas — sin solapamiento
-# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_fig9_mapa_pips_balsas(membrane, dpi=300):
-    """
-    Mapa integrado PIPs + dominios Lo/Ld.
-    Sin manchas blancas: todo el espacio relleno (azul Ld donde no hay datos).
-    Leyenda PIPs en eje dedicado, completamente separada del mapa y colorbar.
-    PIPs con borde negro para destacar sobre cualquier fondo.
-    """
     seed = membrane.seed
     Lx = membrane.Lx / 10.0
     Ly = membrane.Ly / 10.0
@@ -970,46 +904,62 @@ def plot_fig9_mapa_pips_balsas(membrane, dpi=300):
 
     cmap_bg = mcolors.LinearSegmentedColormap.from_list(
         "bg_neutral",
-        ["#bdd7e7",   # azul lavanda pálido  — Ld puro
-         "#dce8e4",   # verde grisáceo suave
-         "#ece8de",   # gris hueso neutro    — transición
-         "#ddd0b8",   # arena caliente
-         "#c4b090"],  # marrón arena oscuro  — Lo puro
+        ["#bdd7e7",
+         "#dce8e4",
+         "#ece8de",   
+         "#ddd0b8",   
+         "#c4b090"],
         N=256)
 
     with plt.rc_context(PUB_RC):
-        # Layout de 3 columnas: mapa | colorbar | leyenda PIPs (separada)
-        fig = plt.figure(figsize=(_W2 + 1.4, _W2 * 0.82))
+        # Layout: mapa (1.0) | gap estrecho | colorbar binaria (0.028) |
+        #         gap ancho  | leyenda PIPs (0.26)
+        # La colorbar y la leyenda PIPs están en ejes distintos para poder
+        # controlar el gap entre ambas sin que matplotlib los junte.
+        fig = plt.figure(figsize=(_W2 + 1.8, _W2 * 0.82))
         gs = gridspec.GridSpec(1, 3, figure=fig,
-                               left=0.07, right=0.98,
+                               left=0.07, right=0.97,
                                top=0.91, bottom=0.10,
-                               width_ratios=[1.0, 0.03, 0.18], wspace=0.06)
-        ax = fig.add_subplot(gs[0, 0])
-        ax_cb = fig.add_subplot(gs[0, 1])
+                               width_ratios=[1.0, 0.030, 0.28], wspace=0.10)
+        ax     = fig.add_subplot(gs[0, 0])
+        ax_cb  = fig.add_subplot(gs[0, 1])
         ax_leg = fig.add_subplot(gs[0, 2])
         ax_leg.axis("off")
         ax.set_facecolor("#f2f2f2")
 
-        # Mapa base fracción Lo — imshow directo sin NaN
+        # Colorbar binaria: solo Ld (0) y Lo (1), sin gradiente visible.
+        # Se usa ListedColormap de 2 colores directamente sobre el mapa.
+        # Colormap de 3 paradas: Ld (azul grisáceo) → transición (gris cálido
+        # neutral) → Lo (beige tostado). Los extremos están muy saturados
+        # para que el lector identifique fases de un vistazo, y la franja
+        # central suaviza la frontera sin hacer el mapa completamente binario.
+        cmap_lo_ld = mcolors.LinearSegmentedColormap.from_list(
+            "lo_ld_pro",
+            [(0.00, "#a8c8e0"),   # Ld — azul medio, saturado
+             (0.35, "#ccd8d0"),   # transición hacia beige neutro
+             (0.50, "#d6cfc0"),   # punto medio claramente diferenciable
+             (0.65, "#c8b898"),   # transición hacia Lo
+             (1.00, "#b89a68")],  # Lo — beige-ocre, saturado
+            N=256)
         im = ax.imshow(raft_map.T, origin="lower", extent=ext,
-                       cmap=cmap_bg, vmin=0, vmax=1,
-                       aspect="equal", interpolation="nearest", zorder=2)
+                       cmap=cmap_lo_ld, vmin=0, vmax=1,
+                       aspect="equal", interpolation="bilinear", zorder=2)
 
+        # Colorbar: ticks en los extremos + punto medio, sin marcas intrusivas
         cb = fig.colorbar(im, cax=ax_cb)
-        cb.set_label("Fracción Lo", fontsize=8, labelpad=5)
-        cb.set_ticks([0, 0.5, 1.0])
-        cb.set_ticklabels(["0\n(Ld)", "0.50", "1.0\n(Lo)"], fontsize=7)
-        cb.ax.tick_params(length=2.5, width=0.5)
-        cb.outline.set_linewidth(0.5)
+        cb.set_ticks([0.0, 0.5, 1.0])
+        cb.set_ticklabels(["Ld", "0.5", "Lo"], fontsize=7.5)
+        cb.ax.tick_params(length=3, width=0.6, direction="out")
+        cb.outline.set_linewidth(0.6)
 
-        # Contorno Lo/Ld
+        # Contorno Lo/Ld sobre el mapa binario
         xg = np.linspace(0, Lx, raft_map.shape[0])
         yg = np.linspace(0, Ly, raft_map.shape[1])
         ax.contour(xg, yg, raft_map.T, levels=[0.5],
                    colors=["#2c2c2c"], linewidths=1.1,
                    linestyles="--", alpha=0.80, zorder=4)
 
-        # PIPs individuales — borde negro para máximo contraste sobre fondos claros
+        # PIPs individuales
         pip_handles = []
         for sp, (xs, ys) in sorted(pip_by_sp.items(),
                                    key=lambda kv: -len(kv[1][0])):
@@ -1021,16 +971,16 @@ def plot_fig9_mapa_pips_balsas(membrane, dpi=300):
                 mpatches.Patch(fc=col, ec="black", lw=0.4,
                                label="%s  (n = %d)" % (sp, len(xs))))
 
-        # Leyenda PIPs en eje dedicado (físicamente separada del mapa)
+        # Leyenda PIPs en eje dedicado, bien separada de la colorbar
         if pip_handles:
             leg = ax_leg.legend(
                 handles=pip_handles,
                 title="PIPs — monocapa interna",
                 title_fontsize=7.5,
                 fontsize=7,
-                loc="center",
+                loc="center left",
                 frameon=True, framealpha=0.95,
-                edgecolor="#cccccc", borderpad=0.6)
+                edgecolor="#cccccc", borderpad=0.7)
             leg.get_frame().set_linewidth(0.6)
 
         _scalebar(ax, Lx, Ly, color="#333333", lw=2.0, pos_frac=(0.04, 0.04))
@@ -1046,11 +996,7 @@ def plot_fig9_mapa_pips_balsas(membrane, dpi=300):
             loc="upper left")
         _info_box(ax,
             "%d PIPs · %d especie(s)" % (n_pips, len(pip_by_sp)),
-            loc="lower left")
-
-        _ref_footer(fig,
-            "Sezgin et al., Nat. Rev. Mol. Cell Biol. 2017  |  "
-            "Di Paolo & De Camilli, Nature 2006  |  Wen et al., Biophys. J. 2021")
+            loc="lower right")
 
         path = os.path.join(_sim_fig_dir(seed),
                             "fig9_sim%04d_mapa_pips_balsas.png" % seed)

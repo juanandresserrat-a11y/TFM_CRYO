@@ -1,36 +1,32 @@
 """
 ctf_sim.py
-==========
-Simulacion completa de adquisicion TEM para cryo-ET.
+Simulación completa de adquisición TEM para cryo-ET.
 
-Implementa los tres efectos fisicos que degradan la imagen experimental:
+Implementa los tres efectos físicos que degradan la imagen experimental:
   1. CTF (Contrast Transfer Function): invierte el contraste a ciertas
-     frecuencias espaciales, produciendo halos caracteristicos.
-  2. Missing wedge: la geometria de inclinacion limitada (tipicamente
-     ±60-70°) deja sectores del espacio de Fourier sin muestrar,
-     causando elongacion de estructuras en la direccion del eje de
-     inclinacion y perdida de membranas oblicuas.
-  3. Ruido: combinacion de ruido de conteo (Poisson) y ruido de lectura
-     del detector (Gaussiano).
+     frecuencias espaciales, produciendo halos característicos.
+  2. Missing wedge: la geometría de inclinación limitada (±60–70°)
+     deja sectores del espacio de Fourier sin muestrear.
+  3. Ruido: combinación de ruido de conteo (Poisson) y ruido Gaussiano.
 
-La aproximacion de PSF gaussiana usada en el modulo de analisis captura
-la perdida de resolucion pero NO reproduce la inversion de contraste ni
-la anisotropia del missing wedge. Este modulo los implementa correctamente.
+La aproximación de PSF gaussiana usada en el módulo de análisis captura
+la pérdida de resolución pero no reproduce la inversión de contraste ni
+la anisotropía del missing wedge.
 
-Parametros tipicos de cryo-ET:
-  Voltaje:    300 kV  (lambda = 0.0197 Å)
-  Cs:         2.7 mm  (aberracion esferica)
-  Defoco:     1-3 μm  (negativo = subdenfoco convencional)
-  SNR salida: 0.05-0.2 (muy ruidoso)
-  Tilt:       ±60° a 3°/paso
-
-Fuentes:
-  [14] Dubochet et al. Q. Rev. Biophys. 1988
-  [16] Lucic, Rigort & Baumeister, J. Cell Biol. 2013
-  Frank, Electron Tomography, Springer 2006
-  Wade, Ultramicroscopy 1992 (envelopes CTF)
+Referencias principales:
+    [3]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [4]  Helfrich 1973 – elasticidad de membranas y curvatura
+    [5]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
+    [6]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
+    [7]  Singer & Nicolson 1972 – modelo de mosaico fluido de membranas
+    [8]  Frank 2006 – electron tomography y reconstrucción 3D
+    [9]  Martinez-Sanchez 2024 – simulación de contexto celular en cryo-ET
+    [11] Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas
+    [12] Simons & Ikonen 1997 – organización en lipid rafts
+    [13] Lingwood & Simons 2010 – rafts como principio organizador de membrana
+    [14] Liu et al. 2021 – simulaciones de membranas a doble resolución
+    [15] Lucić, Rigort & Baumeister 2013 – cryo-electron tomography in situ
 """
-
 from __future__ import annotations
 
 import os
@@ -68,38 +64,7 @@ def compute_ctf(
     amplitude_contrast: float = 0.07,
     b_factor: float = 200.0,
 ) -> np.ndarray:
-    """
-    Funcion de transferencia de contraste CTF(q).
-
-    CTF(q) = -sqrt(1 - Ac²) · sin(chi(q)) + Ac · cos(chi(q))
-
-    donde chi(q) = π·Δf·λ·q² - π/2·Cs·λ³·q⁴  (aberracion de fase)
-    y Ac es el contraste de amplitud (~0.07 para cryo-ET).
-
-    El factor de B simula la perdida de coherencia y la envolvente
-    del detector: exp(-B·q²/4).
-
-    Parametros
-    ----------
-    qx, qy : np.ndarray
-        Frecuencias espaciales en Å⁻¹ (meshgrid).
-    defocus_um : float
-        Defoco en micras. Positivo = sobreenfoque, negativo = subenfoque.
-        Convención: defoco positivo da contraste correcto para cabezas.
-    cs_mm : float
-        Aberracion esferica en mm.
-    voltage_kv : float
-        Voltaje acelerador en kV.
-    amplitude_contrast : float
-        Fraccion de contraste de amplitud (tipico 0.07-0.10).
-    b_factor : float
-        Factor B de envolvente (Å²). Valores tipicos: 100-500 Å².
-
-    Retorna
-    -------
-    np.ndarray
-        CTF, shape = qx.shape, valores en [-1, 1].
-    """
+    """Funcion de transferencia de contraste CTF(q)."""
     lam = wavelength_angstrom(voltage_kv)
     df = defocus_um * 1e4
     cs = cs_mm * 1e7
@@ -127,23 +92,7 @@ def apply_ctf_2d(
     amplitude_contrast: float = 0.07,
     b_factor: float = 200.0,
 ) -> np.ndarray:
-    """
-    Aplica la CTF a una imagen 2D proyectada.
-
-    Convolucion en el espacio de Fourier: I_ctf = F^-1[ F[I] · CTF ]
-
-    Parametros
-    ----------
-    image : np.ndarray, shape (Nx, Ny)
-        Imagen de densidad proyectada.
-    pixel_size_angstrom : float
-        Tamano de pixel en Å.
-
-    Retorna
-    -------
-    np.ndarray
-        Imagen con CTF aplicada, misma forma que la entrada.
-    """
+    """ Aplica la CTF a una imagen 2D proyectada. """
     Nx, Ny = image.shape
     fx = np.fft.fftfreq(Nx, d=pixel_size_angstrom)
     fy = np.fft.fftfreq(Ny, d=pixel_size_angstrom)
@@ -175,22 +124,7 @@ def apply_missing_wedge(
     Aplica el artefacto de cuña perdida (missing wedge) a un volumen 3D.
 
     Soporta rangos de inclinacion asimetricos y ejes variables para
-    mejorar la generalizacion de redes neuronales entrenadas con el dataset.
-
-    Parametros
-    ----------
-    tilt_max_deg : float
-        Semi-angulo positivo maximo (grados).
-    tilt_min_deg : float, opcional
-        Semi-angulo negativo (si None, usa -tilt_max_deg → simetrico).
-    randomize : bool
-        Si True, randomiza el eje de inclinacion y el rango.
-        Util para data augmentation.
-    rng : np.random.Generator, opcional
-        Generador para reproducibilidad al usar randomize=True.
-
-    Referencia:
-      MemBrain-seg augmentation strategy — github.com/teamtomo/membrain-seg
+    mejorar la generalizacion del dataset.
     """
     if randomize:
         if rng is None:
@@ -231,28 +165,13 @@ def add_noise(
     rng: Optional[np.random.Generator] = None,
 ) -> np.ndarray:
     """
-    Aniade ruido realista de cryo-ET.
+    Añade ruido realista de cryo-ET.
 
     Modelo de dos componentes:
       1. Ruido de Poisson: proporcional a la senal (shot noise del haz)
       2. Ruido gaussiano de lectura del detector
 
     La proporcion relativa de cada componente depende del SNR total.
-
-    Parametros
-    ----------
-    image : np.ndarray
-        Imagen o volumen de entrada.
-    snr : float
-        Relacion senal-ruido objetivo. 0.1 = muy ruidoso (tipico),
-        0.5 = moderado, 1.0 = casi limpio.
-    rng : np.random.Generator, opcional
-        Generador de numeros aleatorios (para reproducibilidad).
-
-    Retorna
-    -------
-    np.ndarray
-        Imagen con ruido anadido.
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -291,23 +210,6 @@ def simulate_projection(
       1. Calcula la densidad electronica proyectada en XY
       2. Aplica la CTF en el espacio de Fourier
       3. Anade ruido Poisson + Gaussiano
-
-    Parametros
-    ----------
-    membrane : BicapaCryoET
-        Bicapa ya construida.
-    defocus_um : float
-        Defoco en micras.
-    snr : float
-        Relacion senal-ruido (0.05-0.2 es realista para cryo-ET).
-    use_electron_density : bool
-        Si True usa densidad electronica real (recomendado).
-        Si False usa densidad de masa (rapido, menos realista).
-
-    Retorna
-    -------
-    np.ndarray, shape (bins_xy, bins_xy)
-        Imagen simulada de cryo-ET.
     """
     pixel_A = membrane.Lx / bins_xy
 
@@ -346,20 +248,7 @@ def simulate_volume(
     bins_xy: int = 55,
     bins_z: int = 40,
 ) -> np.ndarray:
-    """
-    Simula un tomograma 3D completo con CTF, missing wedge y ruido.
-
-    Pipeline:
-      1. Densidad electronica 3D
-      2. Missing wedge en espacio de Fourier
-      3. CTF aplicada slice a slice (aprox. de campo lejano)
-      4. Ruido
-
-    Retorna
-    -------
-    np.ndarray, shape (bins_xy, bins_xy, bins_z)
-        Tomograma simulado.
-    """
+    """ Simula un tomograma 3D completo con CTF, missing wedge y ruido."""
     from electron_density import electron_density_volume
 
     vol, edges = electron_density_volume(membrane, bins_xy=bins_xy, bins_z=bins_z)

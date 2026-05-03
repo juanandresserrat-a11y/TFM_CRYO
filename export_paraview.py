@@ -1,36 +1,36 @@
 """
 export_paraview.py
-==================
 Exportacion para ParaView por simulacion.
 
 Estructura de salida:
   CryoET/paraview/simulacion{N}/
-    bilayer_sim{N}.vtp          PRINCIPAL: todos los granos + bonds
-    bilayer_sim{N}_heads.vtp    Solo cabezas polares
-    bilayer_sim{N}_tails.vtp    Solo colas acil (sn1 + sn2 + CHOL)
-    bilayer_sim{N}_rafts.vtp    Solo dominio Lo
-    bilayer_sim{N}_pips.vtp     Solo regiones de PIPs (cabezas destacadas)
-    bilayer_sim{N}_chol.vtp     Solo colesterol (region 4)
-    bilayer_sim{N}_ext.vtp      Solo monocapa externa
-    bilayer_sim{N}_int.vtp      Solo monocapa interna
-    bilayer_heads_sim{N}.pdb    Cabezas en PDB (PyMOL/ChimeraX/VMD)
+    bilayer_sim{N}.vtp          todos los granos + bonds
+    bilayer_sim{N}_heads.vtp    cabezas polares
+    bilayer_sim{N}_tails.vtp    colas acil (sn1, sn2, CHOL)
+    bilayer_sim{N}_rafts.vtp    dominios Lo
+    bilayer_sim{N}_pips.vtp     regiones PIPs
+    bilayer_sim{N}_chol.vtp     colesterol (region 4)
+    bilayer_sim{N}_ext.vtp      monocapa externa
+    bilayer_sim{N}_int.vtp      monocapa interna
+    bilayer_heads_sim{N}.pdb    cabezas en formato PDB
 
-PROPIEDADES CORREGIDAS:
-  - is_pip:      1 si el lipido es de especie PIP (para colorear toda la molecula)
-  - pip_head:    1 SOLO en el grano cabeza de un lipido PIP (para resaltar)
-  - region:      0=cabeza 1=glicerol 2=sn1 3=sn2 4=CHOL_body
-  - CHOL region 4 asegurado: todo el cuerpo del colesterol es region=4
+Propiedades:
+  is_pip   = 1 si lipido PIP
+  pip_head = 1 en el grano cabeza de PIP
+  region   = 0 cabeza, 1 glicerol, 2 sn1, 3 sn2, 4 CHOL
 
-Para abrir en ParaView:
-  File -> Open -> bilayer_sim{N}.vtp -> Apply
-  Filters -> Tube -> Radius=1.2 -> Apply
-  Colorear por 'electron_density' para insaturaciones
+El colesterol se asigna completamente a region 4.
 
-Referencias:
-  Nagle & Tristram-Nagle BBA 2000
-  Kucerka et al. Biophys. J. 2008
-  Piggot et al. JCTC 2017
-  Chaisson et al. JCIM 2025
+Uso en ParaView:
+  Open -> bilayer_sim{N}.vtp
+  Apply -> Tube filter (radius 1.2)
+  Color -> electron_density
+
+Referencias principales:
+    [4] Chaisson et al. 2025 – cuantificación de interdigitación en bicapas simuladas mediante interacciones trans-bicapa
+    [11] Kučerka et al. 2008 – determinación experimental de espesores y áreas lipídicas en bicapas fosfolipídicas
+    [18] Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y modelos de densidad electrónica
+    [20] Piggot et al. 2017 – cálculo del parámetro de orden S_CH a partir de simulaciones de lípidos
 """
 
 from __future__ import annotations
@@ -152,6 +152,38 @@ def _build_atoms_and_bonds(membrane):
                     bonds.append((i_prev, i_t))
                     i_prev = i_t
 
+    # Proteinas transmembrana: cada perturbacion se representa como una
+    # columna de N_SLICES puntos que atraviesa la bicapa de z_inner a z_outer.
+    # region=5, is_protein=1 permiten filtrarlas en ParaView independientemente
+    # del resto de la molecula. electron_density=0.400 e/A3 es el valor
+    # tipico de una proteina integrada en membrana (entre colas y cabezas).
+    is_protein_arr = [0] * len(xs)
+    ED_PROTEIN = 0.400
+    g = getattr(membrane, "geometry", None)
+    z_bottom = float(g.z_inner - 5.0) if g else -60.0
+    z_top    = float(g.z_outer + 5.0) if g else  60.0
+    N_SLICES = 12
+
+    for pert in getattr(membrane, "perturbations", []):
+        px, py = float(pert["pos"][0]), float(pert["pos"][1])
+        z_pts  = np.linspace(z_bottom, z_top, N_SLICES)
+        prev_idx = None
+        for si, z_pt in enumerate(z_pts):
+            idx = len(xs)
+            xs.append(px); ys.append(py); zs.append(float(z_pt))
+            lipid_id_arr.append(99); leaflet_arr.append(2)
+            bead_type_arr.append(9); seg_idx_arr.append(si)
+            order_p.append(0.0); in_raft_arr.append(0)
+            is_pip_arr.append(0); pip_head_arr.append(0)
+            ed_arr.append(ED_PROTEIN); ndb_arr.append(0)
+            phase_arr.append(2); nc_arr.append(0)
+            region_arr.append(5); is_head_arr.append(0)
+            is_glycerol_arr.append(0); is_tail_arr.append(0)
+            is_protein_arr.append(1)
+            if prev_idx is not None:
+                bonds.append((prev_idx, idx))
+            prev_idx = idx
+
     atoms = {
         "x": np.array(xs, np.float32), "y": np.array(ys, np.float32),
         "z": np.array(zs, np.float32),
@@ -171,6 +203,7 @@ def _build_atoms_and_bonds(membrane):
         "is_head":          np.array(is_head_arr,  np.int32),
         "is_glycerol":      np.array(is_glycerol_arr, np.int32),
         "is_tail":          np.array(is_tail_arr,  np.int32),
+        "is_protein":       np.array(is_protein_arr, np.int32),
     }
     return atoms, bonds
 
@@ -227,7 +260,7 @@ def export_vtp(membrane, d=None):
 
     atoms, bonds = _build_atoms_and_bonds(membrane)
     prop_order = [
-        "region","is_head","is_glycerol","is_tail",
+        "region","is_head","is_glycerol","is_tail","is_protein",
         "order_param","in_raft","is_pip","pip_head","electron_density",
         "lipid_id","leaflet","bead_type","seg_idx",
         "n_doublebonds","phase","chain_length",
@@ -269,15 +302,14 @@ def export_vtp_by_region(membrane, atoms, bonds, d=None):
         return p
 
     masks = {
-        "heads":  atoms["region"] == 0,
-        "tails":  atoms["is_tail"] == 1,
-        "rafts":  atoms["in_raft"] == 1,
-        # PIPs: SOLO las cabezas de lipidos PIP (no las colas)
-        "pips":   atoms["pip_head"] == 1,
-        # CHOL: region 4 = cuerpo del anillo esteroide
-        "chol":   atoms["region"] == 4,
-        "ext":    atoms["leaflet"] == 0,
-        "int":    atoms["leaflet"] == 1,
+        "heads":    atoms["region"] == 0,
+        "tails":    atoms["is_tail"] == 1,
+        "rafts":    atoms["in_raft"] == 1,
+        "pips":     atoms["pip_head"] == 1,
+        "chol":     atoms["region"] == 4,
+        "proteins": atoms["is_protein"] == 1,
+        "ext":      (atoms["leaflet"] == 0) & (atoms["is_protein"] == 0),
+        "int":      (atoms["leaflet"] == 1) & (atoms["is_protein"] == 0),
     }
     paths = {}
     for tag, mask in masks.items():
@@ -385,9 +417,11 @@ def export_all_paraview(membrane):
     write_readme(membrane, d)
 
     # Stats summary
-    n_chol_grains = int((atoms["region"]==4).sum())
-    n_pip_heads   = int((atoms["pip_head"]==1).sum())
-    n_raft_grains = int((atoms["in_raft"]==1).sum())
-    print("  CHOL granos (region=4): %d | PIP cabezas: %d | Raft granos: %d" % (
-        n_chol_grains, n_pip_heads, n_raft_grains))
+    n_chol_grains    = int((atoms["region"]==4).sum())
+    n_pip_heads      = int((atoms["pip_head"]==1).sum())
+    n_raft_grains    = int((atoms["in_raft"]==1).sum())
+    n_protein_grains = int((atoms["is_protein"]==1).sum())
+    n_proteins       = len(getattr(membrane, "perturbations", []))
+    print("  CHOL granos (region=4): %d | PIP cabezas: %d | Raft granos: %d | Proteinas: %d (%d granos)" % (
+        n_chol_grains, n_pip_heads, n_raft_grains, n_proteins, n_protein_grains))
     return paths

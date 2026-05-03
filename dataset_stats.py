@@ -1,6 +1,5 @@
 """
 dataset_stats.py
-================
 Estadisticas del dataset completo y figuras de publicacion.
 
 Genera dos tipos de salidas:
@@ -59,21 +58,13 @@ def compute_dataset_stats(
     run_validation: bool = True,
 ) -> Dict:
     """
-    Calcula estadisticas del dataset para una lista de semillas.
+    Calcula estadisticas del dataset a partir de una lista de semillas.
 
-    Construye cada membrana y extrae metricas escalares.
-    No guarda figuras — solo acumula datos numericos.
+    Para cada semilla:
+      - Construye la bicapa
+      - Extrae metricas escalares
 
-    Parametros
-    ----------
-    seeds : list of int
-        Semillas a procesar.
-    run_validation : bool
-        Si True, ejecuta los benchmarks cuantitativos por semilla.
-
-    Retorna
-    -------
-    dict con estadisticas agregadas.
+    No genera figuras, solo datos numericos.
     """
     from validation import run_all_benchmarks
 
@@ -155,7 +146,7 @@ def plot_dataset_summary(
     Panel resumen del dataset completo.
 
     4 paneles:
-      1. Distribucion de kc vs composicion de CHOL+SM
+      1. Distribucion de kc vs. composicion de CHOL+SM
       2. Distribucion de grosores (variabilidad inter-semilla)
       3. Scatter S_CH gel vs fluido (separacion de fases)
       4. Scores de validacion por semilla
@@ -197,7 +188,7 @@ def plot_dataset_summary(
         ax1.set_ylabel("kc (kBT·nm²)", fontsize=9)
         ax1.set_title(
             "kc vs composicion\n"
-            "Mayor CHOL/SM → mayor rigidez [6]",
+            "Mayor CHOL/SM → mayor rigidez [3]",
             fontsize=9, fontweight="bold",
         )
         ax1.legend(fontsize=8)
@@ -300,11 +291,7 @@ def plot_ctf_comparison(
     snr: float = 0.1,
     save_path: Optional[str] = None,
 ):
-    """
-    Panel comparando imagen sin CTF, con CTF y con CTF+ruido+missing wedge.
-
-    Justifica el realismo del pipeline de simulacion TEM.
-    """
+    """Panel comparando imagen sin CTF, con CTF y con CTF+ruido+missing wedge."""
     from ctf_sim import simulate_projection, apply_missing_wedge, add_noise
     from electron_density import electron_density_projection
 
@@ -398,7 +385,7 @@ def plot_mrc_comparison(
 
     cx = 0.5 * (edges[0][:-1] + edges[0][1:])
     cy = 0.5 * (edges[1][:-1] + edges[1][1:])
-    cz = 0.5 * (edges[2][:-1] + edges[2][1:])
+    cz = 0.5 * (edges[26][:-1] + edges[26][1:])
 
     with plt.rc_context(PLT_STYLE):
         fig, axes = plt.subplots(2, 3, figsize=(18, 10))

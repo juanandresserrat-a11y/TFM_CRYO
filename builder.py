@@ -1,21 +1,16 @@
 """
 builder.py
-==========
-Clase BicapaCryoET: construcción y organización de la bicapa.
+Construcción y organización de la bicapa.
 
-CORRECCIONES v2:
-  - _sanitize_tail: paso z_limit corregido de 0.3 Å/seg a 2.5 Å/seg.
-    El valor anterior recortaba las colas agresivamente, reduciendo la
-    penetración trans-leaflet de SM C24 y haciendo fallar el benchmark
-    de interdigitación Lo > Ld en semillas con composición marginal.
-  - _generate_chol_body: colesterol como cuerpo anular compacto
-    (espiral 12 segmentos), no cadena lineal.
-
-Referencias:
-  [4, 5]  Helfrich / Pinigin – curvatura
-  [6]     Chakraborty – kc de composición
-  [12,13] Simons/Lingwood – rafts
-  [11]    Di Paolo – PIPs
+Referencias principales:
+    [3]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [4]  Helfrich 1973 – elasticidad de membranas y curvatura
+    [5]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
+    [6]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
+    [11] Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas
+    [12] Simons & Ikonen 1997 – organización en lipid rafts
+    [13] Lingwood & Simons 2010 – rafts como principio organizador de membrana
+    [14] Liu et al. 2021 – simulaciones de membranas a doble resolución
 """
 
 from __future__ import annotations
@@ -67,7 +62,7 @@ class BicapaCryoET:
         self.comp_outer: Dict[str, float] = {}
         self.comp_inner: Dict[str, float] = {}
 
-    # ── directorios ──────────────────────────────────────────────────────
+    # Directorios
 
     def seed_dir(self) -> str:
         d = os.path.join(OUTPUT_DIR, "seed%04d" % self.seed)
@@ -79,7 +74,7 @@ class BicapaCryoET:
         os.makedirs(d, exist_ok=True)
         return d
 
-    # ── composición ──────────────────────────────────────────────────────
+    # Composición
 
     def _random_composition(
         self,
@@ -94,12 +89,12 @@ class BicapaCryoET:
         values = self.rng.dirichlet(alpha + 1e-8)
         return {k: v for k, v in zip(LIPID_TYPES, values) if v > 0.01}
 
-    # ── geometría ────────────────────────────────────────────────────────
+    # Geometría
 
     def _calculate_geometry(self) -> MembraneGeometry:
         """
         Grosor y posición de cabezas calculados desde las fracciones
-        lipídicas. Datos de Kucerka et al. 2011 [17].
+        lipídicas. Datos de Kucerka et al. 2011.
         """
         def mean_prop(comp, prop):
             return sum(
@@ -133,18 +128,11 @@ class BicapaCryoET:
         iy = int(y / self.Ly * bins) % bins
         return float(self.curvature_map[ix, iy])
 
-    # ── construcción lipídica ─────────────────────────────────────────────
-
     def _generate_chol_body(self, glycerol_pos, sign, phi, rng):
         """
         Cuerpo del colesterol: anillos esteroide A-D + isooctilo.
 
         Espiral compacta de 12 segmentos con progresión Z monótona.
-        El radio disminuye de ~2.1 Å (anillos) a ~0.8 Å (isooctilo).
-        Sustituye la representación anterior de cadena lineal simple,
-        que no reflejaba la geometría rígida y planar del esteroide.
-
-        Referencia: Róg et al. PNAS 2009 (estructura 3D CHOL en bicapa).
         """
         segments = []
         n_seg = 12
@@ -180,23 +168,11 @@ class BicapaCryoET:
         """
         Corrige la geometría de colas acil para evitar intersección
         con la región de cabezas polares o glicerol.
-
-        Garantiza progresión Z monótona en la dirección correcta.
-
-        CORRECCIÓN v3:
+        
         El paso por segmento se calcula desde tail_length de cada
-        especie, con un buffer del 30 % para absorber tilt y desorden.
-
-          seg_step = (tail_length / nseg) × 1.30
-
-        Esto evita que colas cortas (POPC 14.5 Å) viajen tan lejos
+        especie, esto evita que colas cortas (POPC 14.5 Å) viajen tan lejos
         como colas largas (SM 16.5 Å), preservando el contraste de
         interdigitación Lo > Ld.
-
-        El valor anterior (2.5 Å fijo) era demasiado permisivo:
-        permitía que POPC viajara 22.5 Å en Z (= 9 × 2.5), mucho más
-        que su longitud teórica (14.5 Å), igualando artificialmente
-        los scores de Lo y Ld.
         """
         if not tail or len(tail) == 0 or lipid_name == "CHOL":
             return tail
@@ -204,7 +180,6 @@ class BicapaCryoET:
         # Paso máximo por segmento dependiente de la especie
         ltype_data = LIPID_TYPES.get(lipid_name)
         if ltype_data and ltype_data.tail_length > 0:
-            # 30% de buffer sobre el paso teórico (nc*1.26/nseg * cos(min_tilt))
             seg_step = (ltype_data.tail_length / 9) * 1.30
         else:
             seg_step = 2.0  # fallback conservador
@@ -308,8 +283,6 @@ class BicapaCryoET:
             is_pip=ltype.pip_order > 0,
         )
 
-    # ── población de monocapas ────────────────────────────────────────────
-
     def _populate_leaflet(
         self,
         composition: Dict[str, float],
@@ -412,7 +385,7 @@ class BicapaCryoET:
 
         return lipids
 
-    # ── perturbaciones ────────────────────────────────────────────────────
+    # Perturbaciones
 
     def _insert_perturbations(self):
         """Objetos transmembrana con repulsión suave sobre lípidos vecinos."""
@@ -438,7 +411,7 @@ class BicapaCryoET:
                         lip.head_pos[0] = (lip.head_pos[0] + (dx / dist) * force) % self.Lx
                         lip.head_pos[1] = (lip.head_pos[1] + (dy / dist) * force) % self.Ly
 
-    # ── clusters ──────────────────────────────────────────────────────────
+    # Clusters
 
     def _detect_clusters(self):
         """BFS sobre KDTree para etiquetar rafts y clusters de PIPs."""
@@ -471,16 +444,14 @@ class BicapaCryoET:
         self.rafts_inner = find_clusters(self.inner_leaflet, lambda l: l.in_raft)
         self.pip_clusters = find_clusters(self.inner_leaflet, lambda l: l.is_pip, min_size=3)
 
-    # ── build ─────────────────────────────────────────────────────────────
+    # Build
 
     def build(self) -> "BicapaCryoET":
         """
         Construye la bicapa completa con semilla determinista.
-
-        NOTA: Los dominios Lo se generan por nucleación geométrica
-        estocástica, no por simulación termodinámica de separación de
-        fases. Son snapshots estáticos plausibles, no equilibrio real.
-        Referencia: Liu et al. JCTC 2021.
+        
+        Los dominios Lo se generan son instantáneas estáticas, 
+        no equilibrio real.
         """
         self.rng = default_rng(self.seed)
         self.perturbation_density = 0.008 + self.rng.uniform(0, 0.008)

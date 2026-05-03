@@ -1,15 +1,14 @@
 """
 lipid_types.py
-==============
 Definiciones de tipos lipídicos y composiciones de membrana.
 
 Este módulo es de solo lectura: no depende de ningún otro módulo
 del paquete. Todos los demás módulos lo importan.
 
-Referencias:
-  [17] Kucerka et al. Biochim. Biophys. Acta 2011 – áreas y grosores
-  [10] Daleke, J. Lipid Res. 2003 – asimetría composicional
-  [11] Di Paolo & De Camilli, Nature 2006 – fosfoinosítidos
+Referencias principales:
+    [3] Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel en señalización y dinámica de membrana
+    [11] Kučerka et al. 2011 – determinación de áreas moleculares y espesores en bicapas lipídicas mediante dispersión de neutrones
+    [21] Daleke 2003 – mantenimiento de la asimetría lipídica en membranas biológicas y mecanismos de regulación transmembrana
 """
 
 from dataclasses import dataclass
@@ -21,7 +20,7 @@ class LipidType:
     """
     Propiedades biofísicas de una especie lipídica.
 
-    Todos los valores de longitud están en Å; la masa en Da.
+    Todos los valores de longitud están en Å, la masa en Da.
     El campo pip_order indica el número de grupos fosfato adicionales
     en el anillo de inositol (0 = no-PIP, 1 = monofosfato, etc.).
     """
@@ -60,9 +59,6 @@ LIPID_TYPES = {
     ),
     # Plasmalogeno PE: enlace vinil-eter en sn1.
     # ~18-20% de los PE de membrana plasmatica de mamifero.
-    # head_ED=0.448 (sin carbonilo ester en sn1 vs POPE 0.452).
-    # Masa: 699 Da (15 Da menos que POPE, sin O del enlace ester).
-    # Referencia: Braverman & Moser, BBA 2012.
     "PlsPE": LipidType(
         "PlsPE", 59.5, 14.3, 8.2, 3.8, 3.5,
         (16, 18), (0, 1), (None, 9),
@@ -118,8 +114,6 @@ LIPID_TYPES = {
         1097.0, "fluid", False, -5,
         "#ff6b35", "#ffb494", "#c23b00", 3,
     ),
-
-
     "SM": LipidType(
         "SM", 47.0, 16.5, 10.0, 4.5, 4.0,
         (18, 24), (1, 0), (4, None),
@@ -153,7 +147,7 @@ COMP_OUTER_BASE = {
 COMP_INNER_BASE = {
     "POPC":   0.18,
     "POPE":   0.19,
-    "PlsPE":  0.05,   # ~20% de los PE son plasmalogenos (Braverman & Moser 2012)
+    "PlsPE":  0.05,
     "POPS":   0.14,
     "CHOL":   0.28,
     "PI":     0.05,

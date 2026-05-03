@@ -1,6 +1,5 @@
 """
 export.py
-=========
 Exportación de datos de training: arrays numpy y metadatos JSON.
 
 Genera 11 canales por semilla y actualiza el labels.json global.
@@ -40,18 +39,18 @@ if TYPE_CHECKING:
 
 
 CHANNEL_DESCRIPTIONS = {
-    "ch0":  "cryoET_imagen_densidad",
-    "ch1":  "grosor_local_bicapa",
-    "ch2":  "rugosidad_monocapa_externa",
-    "ch3":  "rugosidad_monocapa_interna",
-    "ch4":  "fraccion_raft_externa",
-    "ch5":  "fraccion_raft_interna",
-    "ch6":  "densidad_pip_total",
-    "ch8":  "asimetria_composicional",
-    "ch9":  "slice_xz_cryoET",
-    "ch10": "parametro_orden_S_CH [7,8]",
-    "ch11": "interdigitacion_trans_leaflet [9]",
-    "ch12": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido",
+    "c0":  "cryoET_imagen_densidad",
+    "c1":  "grosor_local_bicapa",
+    "c2":  "rugosidad_monocapa_externa",
+    "c3":  "rugosidad_monocapa_interna",
+    "c4":  "fraccion_raft_externa",
+    "c5":  "fraccion_raft_interna",
+    "c6":  "densidad_pip_total",
+    "c7":  "asimetria_composicional",
+    "c8":  "slice_xz_cryoET",
+    "c9": "parametro_orden_S_CH [7,8]",
+    "c10": "interdigitacion_trans_leaflet [9]",
+    "c11": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido",
 }
 
 REFERENCES = [
@@ -65,48 +64,34 @@ REFERENCES = [
 
 
 def export_training(membrane: "BicapaCryoET", bins: int = 64) -> str:
-    """
-    Exporta los 11 canales de training y actualiza labels.json.
-
-    Parametros
-    ----------
-    membrane : BicapaCryoET
-        Bicapa ya construida (build() ya ejecutado).
-    bins : int
-        Resolución de cada canal (bins × bins). Default 64.
-
-    Retorna
-    -------
-    str
-        Ruta al directorio de salida de esta semilla.
-    """
+    """Exporta los 11 canales de training y actualiza labels.json."""
     d = membrane.training_dir()
 
 
     channels = {
-        "ch0_cryoET": (
+        "c0_cryoET": (
             analysis.density_map(membrane, membrane.outer_leaflet, bins=bins)
             + analysis.density_map(membrane, membrane.inner_leaflet, bins=bins)
         ),
-        "ch1_thickness":   analysis.thickness_map(membrane, bins=bins),
-        "ch2_rough_outer": analysis.roughness_map(membrane, membrane.outer_leaflet, bins=bins),
-        "ch3_rough_inner": analysis.roughness_map(membrane, membrane.inner_leaflet, bins=bins),
-        "ch4_raft_outer":  analysis.raft_fraction_map(membrane, membrane.outer_leaflet, bins=bins),
-        "ch5_raft_inner":  analysis.raft_fraction_map(membrane, membrane.inner_leaflet, bins=bins),
-        "ch6_pip_density": analysis.pip_density_map(membrane, bins=bins),
-        "ch8_asymmetry":   (
+        "c1_thickness":   analysis.thickness_map(membrane, bins=bins),
+        "c2_rough_outer": analysis.roughness_map(membrane, membrane.outer_leaflet, bins=bins),
+        "c3_rough_inner": analysis.roughness_map(membrane, membrane.inner_leaflet, bins=bins),
+        "c4_raft_outer":  analysis.raft_fraction_map(membrane, membrane.outer_leaflet, bins=bins),
+        "c5_raft_inner":  analysis.raft_fraction_map(membrane, membrane.inner_leaflet, bins=bins),
+        "c6_pip_density": analysis.pip_density_map(membrane, bins=bins),
+        "c7_asymmetry":   (
             analysis.density_map(membrane, membrane.outer_leaflet, bins=bins, sigma=2.0)
             - analysis.density_map(membrane, membrane.inner_leaflet, bins=bins, sigma=2.0)
         ),
-        "ch10_order":      analysis.order_parameter_map(membrane, bins=bins),
-        "ch11_interdig":   analysis.interdigitation_map(membrane, bins=bins),
+        "c9_order":      analysis.order_parameter_map(membrane, bins=bins),
+        "c10_interdig":   analysis.interdigitation_map(membrane, bins=bins),
     }
     Hxz, _, _ = analysis.xz_projection(membrane, bx=bins * 2, bz=bins)
-    channels["ch9_xz_slice"] = Hxz
+    channels["c8_xz_slice"] = Hxz
 
     try:
         from electron_density import electron_density_projection
-        channels["ch12_prior_clean"] = electron_density_projection(
+        channels["c11_prior_clean"] = electron_density_projection(
             membrane, bins_xy=bins, sigma=0.8
         )
     except Exception:

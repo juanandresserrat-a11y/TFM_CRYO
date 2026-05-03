@@ -1,8 +1,9 @@
 """
-main.py — Generador de bicapas lipidicas para cryo-ET
+main.py 
+Generador de bicapas lipidicas para cryo-ET
 
-OBJETIVO PRINCIPAL: modelo 3D completo para estudio en ParaView.
-El modelo 2D se elimina. La validacion produce figuras con composicion,
+Modelo 3D completo para estudio en ParaView.
+La validacion produce figuras con composicion,
 perfil ED, PIPs y dominios Lo/Ld.
 
 Uso:

@@ -1,6 +1,5 @@
 """
 analysis.py
-===========
 Funciones de análisis cuantitativo de la bicapa.
 
 Todas las funciones reciben un objeto BicapaCryoET ya construido
@@ -11,10 +10,20 @@ Esto permite:
   - Probar los análisis de forma independiente de la visualización
   - Cachear resultados costosos externamente
 
-Referencias:
-  [4]  Helfrich 1973 – plano medio local
-  [7]  Piggot 2017 – S_CH
-  [9]  Chaisson 2025 – interdigitación normalizada
+Referencias principales:
+
+    [3]  Chakraborty et al. 2020 – efecto del colesterol en la rigidez de membranas insaturadas
+    [4]  Chaisson 2025 – cuantificación de la interdigitación en bicapas simuladas
+    [5]  Kučerka 2011 – espesores de bicapa y áreas lipídicas en PC comunes
+    [7]  Singer & Nicolson 1972 – modelo de mosaico fluido de membranas
+    [8]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas
+    [9]  Martinez-Sanchez 2024 – generación de datasets sintéticos para cryo-ET
+    [10] Helfrich 1973 – elasticidad de membranas y modelo de fluctuaciones
+    [14] Liu et al. 2021 – simulaciones de membranas a doble resolución
+    [15] Lučič et al. 2013 – cryo-electron tomography in situ
+    [17] Moebel et al. 2021 – deep learning en cryo-ET
+    [20] Piggot 2017 – cálculo de parámetros de orden S_CH
+    [21] Pinigin 2022 – parámetros elásticos en membranas lipídicas
 """
 
 from __future__ import annotations
@@ -35,13 +44,7 @@ def density_map(
     bins: int = 90,
     sigma: float = 1.8,
 ) -> np.ndarray:
-    """
-    Mapa de densidad de masa (Da/Å²) proyectado en XY.
-
-    El suavizado gaussiano (sigma en unidades de bin) actúa como PSF
-    gaussiana, aproximación de la función de transferencia del
-    microscopio a bajo defoco [14, 15].
-    """
+    """Mapa de densidad de masa (Da/Å²) proyectado en XY."""
     H = np.zeros((bins, bins))
     ab = (membrane.Lx / bins) * (membrane.Ly / bins)
     for lip in lipids:
@@ -59,7 +62,7 @@ def roughness_map(
 ) -> np.ndarray:
     """
     Rugosidad local σ_z(x,y): desviación estándar de z_cabeza por celda.
-    Diferencia Lo (~0.6 Å) de Ld (~1.8 Å) [5].
+    Diferencia Lo (~0.6 Å) de Ld (~1.8 Å).
     """
     S, S2, C = (np.zeros((bins, bins)) for _ in range(3))
     for lip in lipids:
@@ -82,7 +85,7 @@ def thickness_map(
 ) -> np.ndarray:
     """
     Grosor local (Å): diferencia z_cabeza_sup − z_cabeza_inf por celda.
-    Lo (SM/CHOL) genera ~4 Å más de grosor que Ld (POPC) [5, 17].
+    Lo (SM/CHOL) genera ~4 Å más de grosor que Ld (POPC).
     """
     def avg_z(lipids):
         S, C = np.zeros((bins, bins)), np.zeros((bins, bins))
@@ -123,7 +126,7 @@ def pip_density_map(
 ) -> np.ndarray:
     """
     Densidad de fosfoinosítidos (Da/Å²) en la monocapa interna.
-    Los PIPs de mayor orden reciben peso adicional proporcional [11].
+    Los PIPs de mayor orden reciben peso adicional proporcional.
     """
     H = np.zeros((bins, bins))
     ab = (membrane.Lx / bins) * (membrane.Ly / bins)
@@ -146,7 +149,7 @@ def order_parameter_map(
     """
     Mapa 2D de S_CH medio por celda (ambas monocapas).
 
-    Lo (gel): S_CH ~0.85–0.95 | Ld (fluido): S_CH ~0.60–0.75 [7, 8].
+    Lo (gel): S_CH ~0.85–0.95 | Ld (fluido): S_CH ~0.60–0.75.
     """
     S_sum = np.zeros((bins, bins))
     C = np.zeros((bins, bins))
@@ -168,7 +171,7 @@ def midplane_map(
 
     Suavizado gaussiano para reducir ruido en bins con pocos lípidos.
     Necesario para corregir la ondulación Helfrich antes de calcular
-    la interdigitación [4, 9].
+    la interdigitación.
     """
     S_s, C_s = np.zeros((bins, bins)), np.zeros((bins, bins))
     S_i, C_i = np.zeros((bins, bins)), np.zeros((bins, bins))
@@ -243,11 +246,7 @@ def z_profile(
     bins: int = 160,
     sigma: float = 0.8,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Perfil de densidad de masa a lo largo del eje Z.
-
-    Retorna (z_centers, density) donde density está en Da/Å.
-    """
+    """ Perfil de densidad de masa a lo largo del eje Z."""
     todos = membrane.outer_leaflet + membrane.inner_leaflet
     zs = np.array([l.head_pos[2] for l in todos])
     ms = np.array([l.lipid_type.mass for l in todos])
@@ -269,9 +268,7 @@ def xz_projection(
     Proyección de densidad en el plano XZ (sección transversal).
 
     Las cabezas polares reciben peso 1.5× frente a las colas (0.5×),
-    reforzando el contraste de doble banda característico de cryo-ET [14].
-
-    Retorna (H, x_edges, z_edges).
+    mejorando el contraste de doble banda.
     """
     todos = membrane.outer_leaflet + membrane.inner_leaflet
     xs = np.array([l.head_pos[0] for l in todos]) / 10.0
@@ -302,9 +299,7 @@ def volumetric_density(
     Densidad de masa 3D con coordenadas Z relativas al plano medio local.
 
     Elimina el efecto de la ondulación Helfrich en los slices,
-    centrando la bicapa en z=0 local [4].
-
-    Retorna (H, (x_edges, y_edges, z_edges)).
+    centrando la bicapa en z=0 local.
     """
     todos = membrane.outer_leaflet + membrane.inner_leaflet
     xs = np.array([l.head_pos[0] for l in todos]) / 10.0

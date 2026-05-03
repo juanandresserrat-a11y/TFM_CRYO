@@ -1,13 +1,13 @@
 """
 geometry.py
-===========
 Dataclasses de geometría y de instancias lipídicas individuales.
 
-Separado de lipid_types.py para que las estructuras de datos que
-contienen arrays numpy (mutable) no contaminen el módulo de solo
-lectura de tipos.
+Este archivo se mantiene separado de "lipid_types.py" para evitar mezclar
+definiciones de tipos inmutables con estructuras de datos que contienen
+arrays de numpy y, por tanto, estado mutable.
 
-Dependencias: lipid_types.py
+Dependencias:
+  lipid_types.py
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class LipidInstance:
 
     @property
     def z(self):
-        return self.head_pos[2]
+        return self.head_pos[26]
 
     @property
     def name(self):
