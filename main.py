@@ -1,8 +1,9 @@
 """
-main.py — Generador de bicapas lipidicas para cryo-ET
+main.py 
+Generador de bicapas lipidicas para cryo-ET
 
-OBJETIVO PRINCIPAL: modelo 3D completo para estudio en ParaView.
-El modelo 2D se elimina. La validacion produce figuras con composicion,
+Modelo 3D completo para estudio en ParaView.
+La validacion produce figuras con composicion,
 perfil ED, PIPs y dominios Lo/Ld.
 
 Uso:
@@ -37,11 +38,11 @@ from export import export_training
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Generador sintetico de bicapas lipidicas para cryo-ET",
+        description="Generador sintetico de bicapas lipidicas TFM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--sims", type=int, nargs="+", default=[27, 42],
-                   metavar="N", help="Numeros de simulacion (default: 27 42)")
+                   metavar="N", help="Numeros de simulacion (default: 1 2 3)")
     p.add_argument("--size", type=float, nargs=2, default=[50.0, 50.0],
                    metavar=("X", "Y"))
     p.add_argument("--paraview",  action="store_true",
@@ -55,12 +56,12 @@ def parse_args():
     p.add_argument("--validate",  action="store_true",
                    help="Panel de validacion 3D: composicion, ED, fases, PIPs")
     p.add_argument("--figures",   action="store_true",
-                   help="Figura de publicacion 8 paneles 300 DPI en CryoET/figuras/simulacion{N}/")
+                   help="Figura de analisis y comprobación del modelo 300 DPI en CryoET/figuras/simulacion{N}/")
     p.add_argument("--stats",     action="store_true",
                    help="Estadisticas del dataset (requiere >1 simulacion)")
     p.add_argument("--dpi",       type=int, default=200)
     p.add_argument("--all",       action="store_true",
-                   help="Activa: paraview + model3d + validate + mrc + positions")
+                   help="Ejecuta todo")
     return p.parse_args()
 
 
@@ -68,8 +69,6 @@ def run_sim(seed, size_nm, args):
     """Ejecuta una simulacion completa sin figuras 2D."""
     b = BicapaCryoET(size_nm=tuple(size_nm), seed=seed)
     b.build()
-
-    # Arrays de training (canales numpy + labels.json)
     export_training(b)
 
     if args.paraview or args.all:
