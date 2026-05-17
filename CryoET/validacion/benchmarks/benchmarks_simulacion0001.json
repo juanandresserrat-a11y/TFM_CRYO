@@ -1,0 +1,89 @@
+{
+  "helfrich": {
+    "slope_high_q": -2.5311945001993283,
+    "slope_global": -3.5355347163086037,
+    "slope_low_q": null,
+    "kc_kBT": 1.0,
+    "kc_kBT_powerlaw": 1.0,
+    "kc_kBT_helf2": 1.0,
+    "sigma_over_kappa_nm2": 0.13714649026762776,
+    "r_squared": 0.8904840355170913,
+    "r_sq_powerlaw": 0.8188694864527295,
+    "r_sq_helfrich2": 0.8904840355170913,
+    "accuracy_slope": 65.89230709663465,
+    "accuracy_kc": 39.28040293856064,
+    "accuracy_r2": 62.36895046380532,
+    "accuracy_npts": 100.0,
+    "accuracy_helf2": 89.04840355170913,
+    "accuracy": 70.73763363908655,
+    "grade": "\u2713",
+    "pass": true
+  },
+  "thickness": {
+    "mean_nm": 4.064607680464543,
+    "mean_A": 40.64607680464543,
+    "std_nm": 0.2401524906889008,
+    "std_A": 2.401524906889008,
+    "lo_mean_nm": 3.960753965231623,
+    "ld_mean_nm": 4.100812147709969,
+    "lo_peak_nm": 4.282123903958163,
+    "ld_peak_nm": 3.566126110181484,
+    "diff_A": 7.159977937766788,
+    "n_peaks": 3,
+    "pass_bimodal": true,
+    "pass_diff": true,
+    "accuracy_diff": 80.60014708155475,
+    "accuracy_bimodal": 100.0,
+    "grade_diff": "\u2713",
+    "grade_bimodal": "\u2713",
+    "pass": true
+  },
+  "order": {
+    "gel_mean": 0.8893810472689178,
+    "fluid_mean": 0.7353816145605161,
+    "chol_mean": 0.9000000000000002,
+    "delta_sch": 0.15399943270840166,
+    "n_gel": 554,
+    "n_fluid": 8414,
+    "n_chol": 3696,
+    "pass_gel": true,
+    "pass_fluid": true,
+    "accuracy_gel": 95.2063175770274,
+    "accuracy_fluid": 78.65459635987098,
+    "grade_gel": "\u2713",
+    "grade_fluid": "\u2713",
+    "pass": true
+  },
+  "raft_corr": {
+    "xi_nm": 7.273256005790257,
+    "accuracy": 82.91343704775974,
+    "grade": "\u2713",
+    "pass": true
+  },
+  "interdig": {
+    "interdig_lo": 0.451432799187508,
+    "interdig_ld": 0.4175651635963294,
+    "lo_gt_ld": true,
+    "accuracy": 100.0,
+    "grade": "\u2713",
+    "pass": true
+  },
+  "electron_ed": {
+    "ed_head_peak": 0.49782502328714096,
+    "ed_tail": 0.29637084346327136,
+    "pass_head": true,
+    "pass_tail": true,
+    "accuracy_head": 84.23957363035794,
+    "accuracy_tail": 98.62915653672867,
+    "grade_head": "\u2713",
+    "grade_tail": "\u2713",
+    "pass": true
+  },
+  "summary": {
+    "seed": 1,
+    "passed": 6,
+    "total": 6,
+    "score": 0.871,
+    "accuracy_pct": 87.1
+  }
+}
