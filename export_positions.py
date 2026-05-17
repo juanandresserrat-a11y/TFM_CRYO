@@ -55,12 +55,27 @@ if TYPE_CHECKING:
     from geometry import LipidInstance
 
 
-POS_DIR = os.path.join(OUTPUT_DIR, "posiciones")
+POS_DIR     = os.path.join(OUTPUT_DIR, "posiciones")
+POS_PDB     = os.path.join(POS_DIR, "pdb")
+POS_CSV     = os.path.join(POS_DIR, "csv")
+POS_POLNET  = os.path.join(POS_DIR, "polnet")
 
 
 def _pos_dir():
     os.makedirs(POS_DIR, exist_ok=True)
     return POS_DIR
+
+def _pos_pdb_dir():
+    os.makedirs(POS_PDB, exist_ok=True)
+    return POS_PDB
+
+def _pos_csv_dir():
+    os.makedirs(POS_CSV, exist_ok=True)
+    return POS_CSV
+
+def _pos_polnet_dir():
+    os.makedirs(POS_POLNET, exist_ok=True)
+    return POS_POLNET
 
 
 def _bead_name(bead_type: str, lipid_name: str) -> str:
@@ -115,7 +130,7 @@ def export_pdb(
         para que la membrana pueda visualizarse sin discontinuidades en bordes
     """
     if path is None:
-        path = os.path.join(_pos_dir(), "bicapa_simulacion%04d.pdb" % membrane.seed)
+        path = os.path.join(_pos_pdb_dir(), "bicapa_simulacion%04d.pdb" % membrane.seed)
 
     lines = []
     lines.append(
@@ -231,7 +246,7 @@ def export_csv_positions(
     """
     if path is None:
         path = os.path.join(
-            _pos_dir(), "posiciones_simulacion%04d.csv" % membrane.seed
+            _pos_csv_dir(), "posiciones_simulacion%04d.csv" % membrane.seed
         )
 
     fieldnames = [
@@ -315,7 +330,7 @@ def export_polnet_particle_list(
     """
     if path is None:
         path = os.path.join(
-            _pos_dir(), "polnet_particulas_simulacion%04d.csv" % membrane.seed
+            _pos_polnet_dir(), "polnet_particulas_simulacion%04d.csv" % membrane.seed
         )
 
     def vec_to_quaternion(v: np.ndarray) -> Tuple[float, float, float, float]:

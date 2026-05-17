@@ -38,12 +38,32 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-MRC_DIR = os.path.join(OUTPUT_DIR, "mrc")
+MRC_DIR         = os.path.join(OUTPUT_DIR, "mrc")
+MRC_DENSIDAD    = os.path.join(MRC_DIR, "densidad")
+MRC_ETIQUETAS   = os.path.join(MRC_DIR, "etiquetas")
+MRC_GAUSSIANA   = os.path.join(MRC_DIR, "gaussiana")
+MRC_CONFIG      = os.path.join(MRC_DIR, "config")
 
 
 def _mrc_dir():
     os.makedirs(MRC_DIR, exist_ok=True)
     return MRC_DIR
+
+def _mrc_densidad_dir():
+    os.makedirs(MRC_DENSIDAD, exist_ok=True)
+    return MRC_DENSIDAD
+
+def _mrc_etiquetas_dir():
+    os.makedirs(MRC_ETIQUETAS, exist_ok=True)
+    return MRC_ETIQUETAS
+
+def _mrc_gaussiana_dir():
+    os.makedirs(MRC_GAUSSIANA, exist_ok=True)
+    return MRC_GAUSSIANA
+
+def _mrc_config_dir():
+    os.makedirs(MRC_CONFIG, exist_ok=True)
+    return MRC_CONFIG
 
 
 def export_density_mrc(
@@ -68,13 +88,13 @@ def export_density_mrc(
     H_norm = (H / H.max() * 255.0).astype(np.float32)
 
     fname = "bicapa_simulacion%04d.mrc" % membrane.seed
-    path = os.path.join(_mrc_dir(), fname)
+    path = os.path.join(_mrc_densidad_dir(), fname)
 
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(H_norm.T)
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  %.0fx%.0fx%.0f voxeles  %.0f A/voxel" % (
+    print("  -> mrc/densidad/%s  %.0fx%.0fx%.0f voxeles  %.0f A/voxel" % (
         fname,
         H_norm.shape[0], H_norm.shape[1], H_norm.shape[2],
         voxel_angstrom,
@@ -132,13 +152,13 @@ def export_label_mrc(
             labels[:, :, iz] = 2
 
     fname = "bicapa_simulacion%04d_etiquetas.mrc" % membrane.seed
-    path = os.path.join(_mrc_dir(), fname)
+    path = os.path.join(_mrc_etiquetas_dir(), fname)
 
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  etiquetas: fondo · ext · hidrofobico · int" % fname)
+    print("  -> mrc/etiquetas/%s  fondo · ext · hidrofobico · int" % fname)
     return path
 
 
@@ -168,7 +188,7 @@ def generate_polnet_yaml(
     El YAML referencia directamente los archivos MRC exportados.
     """
     density_path = os.path.abspath(os.path.join(
-        _mrc_dir(), "bicapa_simulacion%04d.mrc" % membrane.seed
+        MRC_DENSIDAD, "bicapa_simulacion%04d.mrc" % membrane.seed
     ))
 
     yaml_content = (
@@ -221,11 +241,11 @@ def generate_polnet_yaml(
     }
 
     yaml_name = "config_simulacion%04d.yaml" % membrane.seed
-    yaml_path = os.path.join(_mrc_dir(), yaml_name)
+    yaml_path = os.path.join(_mrc_config_dir(), yaml_name)
     with open(yaml_path, "w") as f:
         f.write(yaml_content)
 
-    print("  -> mrc/%s  plantilla PolNet lista" % yaml_name)
+    print("  -> mrc/config/%s  plantilla PolNet lista" % yaml_name)
     return yaml_path
 
 
@@ -286,12 +306,12 @@ def export_double_gaussian_mrc(
     vol_norm   = (vol_smooth / vol_smooth.max() * 255.0).astype(np.float32)
 
     fname = "bicapa_gaussiana_simulacion%04d.mrc" % membrane.seed
-    path  = os.path.join(_mrc_dir(), fname)
+    path  = os.path.join(_mrc_gaussiana_dir(), fname)
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(vol_norm.T)
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  perfil doble gaussiana" % fname)
+    print("  -> mrc/gaussiana/%s  perfil doble gaussiana" % fname)
     return path
 
 
@@ -331,10 +351,10 @@ def export_label_mrc_with_closing(
         labels[closed & (labels == 0)] = label_val
 
     fname = "bicapa_simulacion%04d_etiquetas_cerradas.mrc" % membrane.seed
-    path  = os.path.join(_mrc_dir(), fname)
+    path  = os.path.join(_mrc_etiquetas_dir(), fname)
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  etiquetas con cierre morfologico" % fname)
+    print("  -> mrc/etiquetas/%s  etiquetas con cierre morfologico" % fname)
     return path

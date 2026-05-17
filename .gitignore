@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Entorno / checkpoints (NO subir)
+.ipynb_checkpoints/
+.ipython/
+.mozilla/
+.wget-hsts
+*~
+*.swp
+*.tmp
+
+# Outputs pesados CryoET (NO subir)
+CryoET/entrenamiento/
+CryoET/mrc/densidad/
+CryoET/mrc/etiquetas/
+CryoET/mrc/gaussiana/
+CryoET/mrc/config/
+CryoET/resultados/
+CryoET/modelo3d/volumenes/
+CryoET/modelo3d/figuras/
+CryoET/validacion/benchmarks/
+CryoET/validacion/paneles/
+CryoET/estadisticas/
+CryoET/posiciones/pdb/
+CryoET/posiciones/csv/
+CryoET/posiciones/polnet/
+CryoET/paraview/
+
+# Carpetas antiguas (por si quedan restos)
+CryoET/training/
+CryoET/model3d/
+CryoET/validation/
+CryoET/stats/
+CryoET/positions/
+
+# Sistema
+.DS_Store
+Thumbs.db
+

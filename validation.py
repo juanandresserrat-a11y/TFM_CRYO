@@ -45,12 +45,22 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-VAL_DIR = os.path.join(OUTPUT_DIR, "validacion")
+VAL_DIR         = os.path.join(OUTPUT_DIR, "validacion")
+VAL_PANELES     = os.path.join(VAL_DIR, "paneles")
+VAL_BENCHMARKS  = os.path.join(VAL_DIR, "benchmarks")
 
 
 def _val_dir():
     os.makedirs(VAL_DIR, exist_ok=True)
     return VAL_DIR
+
+def _val_paneles_dir():
+    os.makedirs(VAL_PANELES, exist_ok=True)
+    return VAL_PANELES
+
+def _val_benchmarks_dir():
+    os.makedirs(VAL_BENCHMARKS, exist_ok=True)
+    return VAL_BENCHMARKS
 
 
 PLT_STYLE = {
@@ -839,7 +849,7 @@ def plot_validation_panel(
 
         if save_path is None:
             save_path = os.path.join(
-                _val_dir(), "validacion_simulacion%04d.png" % membrane.seed
+                _val_paneles_dir(), "validacion_simulacion%04d.png" % membrane.seed
             )
         fig.savefig(save_path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -876,7 +886,7 @@ def save_benchmark_json(results: Dict, membrane: "BicapaCryoET"):
             for kk, vv in v.items()
             if kk not in RAW_KEYS
         }
-    path = os.path.join(_val_dir(), "benchmarks_simulacion%04d.json" % membrane.seed)
+    path = os.path.join(_val_benchmarks_dir(), "benchmarks_simulacion%04d.json" % membrane.seed)
     with open(path, "w") as f:
         json.dump(clean, f, indent=2)
     print("  -> %s" % path)

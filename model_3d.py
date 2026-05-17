@@ -50,12 +50,22 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-MODEL3D_DIR = os.path.join(OUTPUT_DIR, "modelo3d")
+MODEL3D_DIR         = os.path.join(OUTPUT_DIR, "modelo3d")
+MODEL3D_VOLUMENES   = os.path.join(MODEL3D_DIR, "volumenes")
+MODEL3D_FIGURAS     = os.path.join(MODEL3D_DIR, "figuras")
 
 
 def _model3d_dir():
     os.makedirs(MODEL3D_DIR, exist_ok=True)
     return MODEL3D_DIR
+
+def _model3d_vol_dir():
+    os.makedirs(MODEL3D_VOLUMENES, exist_ok=True)
+    return MODEL3D_VOLUMENES
+
+def _model3d_fig_dir():
+    os.makedirs(MODEL3D_FIGURAS, exist_ok=True)
+    return MODEL3D_FIGURAS
 
 
 UNSATURATION_PENALTY = 0.035
@@ -674,7 +684,7 @@ def export_physical_model_mrc(
         membrane, bins_xy=bins_xy, bins_z=bins_z, voxel_angstrom=voxel_angstrom
     )
 
-    d = _model3d_dir()
+    d = _model3d_vol_dir()
 
     path_ed = os.path.join(d, "bicapa_fisica_simulacion%04d.mrc" % membrane.seed)
     with mrcfile.new(path_ed, overwrite=True) as mrc:
@@ -694,7 +704,7 @@ def export_physical_model_mrc(
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> modelo3d/bicapa_fisica_simulacion%04d.mrc  %dx%dx%d voxeles  %.0f A/voxel" % (
+    print("  -> modelo3d/volumenes/bicapa_fisica_simulacion%04d.mrc  %dx%dx%d voxeles  %.0f A/voxel" % (
         membrane.seed, bins_xy, bins_xy, bins_z, voxel_angstrom))
     print("  cabezas: %.3f e/A3  |  Lo: %.3f  |  Ld: %.3f  |  CHOL: %.3f  |  contraste Lo/Ld: %.4f e/A3" % (
         stats["ed_head_mean"], stats["ed_tail_Lo"],
@@ -901,7 +911,7 @@ def plot_physical_model(
 
         plt.subplots_adjust(left=0.06, right=0.96, top=0.93, bottom=0.11,
                             hspace=0.55, wspace=0.35)
-        path = os.path.join(save_dir, "modelo3d_simulacion%04d.png" % membrane.seed)
+        path = os.path.join(_model3d_fig_dir(), "modelo3d_simulacion%04d.png" % membrane.seed)
         fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)
         print("  -> %s" % path)
