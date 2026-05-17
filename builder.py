@@ -68,12 +68,12 @@ class BicapaCryoET:
     # Directorios
 
     def seed_dir(self) -> str:
-        d = os.path.join(OUTPUT_DIR, "seed%04d" % self.seed)
+        d = os.path.join(OUTPUT_DIR, "simulacion%04d" % self.seed)
         os.makedirs(d, exist_ok=True)
         return d
 
     def training_dir(self) -> str:
-        d = os.path.join(OUTPUT_DIR, "training", "seed%04d" % self.seed)
+        d = os.path.join(OUTPUT_DIR, "entrenamiento", "simulacion%04d" % self.seed)
         os.makedirs(d, exist_ok=True)
         return d
 
@@ -473,6 +473,7 @@ class BicapaCryoET:
             "n_ld":  len(s_ld),
             "n_chol": len(s_chol),
         }
+
     def get_thickness_by_domain(self) -> Dict[str, float]:
         """
         Grosor D_PP por dominio espacial usando apareamiento sup↔inf.
@@ -541,8 +542,7 @@ class BicapaCryoET:
         self._detect_clusters()
 
         print(
-            "  seed=%d | %.0fx%.0f nm | lipidos=%d | "
-            "rafts=%d/%d | pips=%d | kc=%.0f | sigma=%.3f"
+            "  Simulacion %d  %.0fx%.0f nm  |  %d lipidos  |  rafts ext/int: %d/%d  |  clusters PIP: %d  |  kc: %.0f kBT·nm2  |  tension: %.3f"
             % (
                 self.seed, self.Lx / 10, self.Ly / 10,
                 len(self.outer_leaflet) + len(self.inner_leaflet),

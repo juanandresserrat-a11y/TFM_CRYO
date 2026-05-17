@@ -6,7 +6,7 @@ Figuras producidas:
     R1  Caracterización biofísica (composición, parámetros elásticos, perfil ED)
     R2  Validación biofísica (tabla de benchmarks, scores, paneles de validación)
     R3  Organización lateral (mapas Lo/Ld, PIPs, parámetro de orden)
-    R4  Campos biofísicos de training (12 canales para deep learning)
+    R4  Campos de entrenamiento (12 campos para deep learning)
     R5  Calidad cryo-ET (CTF, ruido, PSD, missing wedge)
     R6  Comparativa multi-simulación y justificación de N=5
 
@@ -978,7 +978,7 @@ def plot_R4_campos(membrane: BicapaCryoET, dpi: int = 300) -> str:
     with plt.rc_context(PUB_RC):
         fig, axes = plt.subplots(3, 4, figsize=(14, 10))
         fig.suptitle(
-            f"Campos Biofísicos | Simulación = {seed}  "
+            f"Campos de Entrenamiento | Simulacion = {seed}  "
             f"({bins}×{bins} px por campo)",
             fontsize=11, fontweight="bold", y=0.99)
         plt.subplots_adjust(left=0.04, right=0.97, top=0.94, bottom=0.04,
@@ -1004,7 +1004,7 @@ def plot_R4_campos(membrane: BicapaCryoET, dpi: int = 300) -> str:
             ax.set_ylabel("y (nm)", fontsize=6.5)
             ax.tick_params(labelsize=6)
 
-        return _save(fig, f"R4_campos_training_sim{seed:04d}", dpi, subdir="R4")
+        return _save(fig, f"R4_campos_entrenamiento_sim{seed:04d}", dpi, subdir="R4")
 
 
 def plot_R5_cryoET(membrane: BicapaCryoET, dpi: int = 300) -> str:

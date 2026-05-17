@@ -3,7 +3,7 @@ dataset_stats.py
 Estadisticas del dataset completo y figuras de publicacion.
 
 Genera dos tipos de salidas:
-  1. Estadisticas de dataset (N semillas)
+  1. Estadisticas de dataset (N simulaciones)
      - Variabilidad de composicion entre semillas
      - Distribuciones de parametros fisicos (kc, sigma, grosor)
      - Cobertura del espacio de configuraciones
@@ -39,7 +39,7 @@ import analysis
 from builder import BicapaCryoET, OUTPUT_DIR
 from lipid_types import LIPID_TYPES
 
-STATS_DIR = os.path.join(OUTPUT_DIR, "stats")
+STATS_DIR = os.path.join(OUTPUT_DIR, "estadisticas")
 PLT_STYLE = {
     "figure.facecolor": "white", "axes.facecolor": "white",
     "axes.edgecolor": "#333333", "axes.linewidth": 1.0,
@@ -71,7 +71,7 @@ def compute_dataset_stats(
     from validation import run_all_benchmarks
 
     records = []
-    print("Calculando estadisticas para %d semillas..." % len(seeds))
+    print("Estadisticas del dataset  %d simulaciones" % len(seeds))
 
     for seed in seeds:
         b = BicapaCryoET(size_nm=size_nm, seed=seed)
@@ -105,7 +105,7 @@ def compute_dataset_stats(
             rec["val_total"] = val["summary"]["total"]
 
         records.append(rec)
-        print("  seed=%d | kc=%.1f | T=%.1fA | val=%.0f%%" % (
+        print("  simulacion %d  |  kc: %.1f  |  grosor: %.1f A  |  validacion: %.0f%%" % (
             seed, b.bending_modulus, T.mean(),
             rec.get("val_score", 0) * 100,
         ))
@@ -127,7 +127,7 @@ def compute_dataset_stats(
         stats["val_scores"] = scores
         stats["val_mean"] = float(np.mean(scores))
         stats["val_min"] = float(np.min(scores))
-        print("\nScore validacion: %.0f%% ± %.0f%% (min %.0f%%)" % (
+        print("\nScore de validacion: %.0f%% ± %.0f%%  minimo: %.0f%%" % (
             np.mean(scores)*100, np.std(scores)*100, np.min(scores)*100
         ))
 
@@ -136,7 +136,7 @@ def compute_dataset_stats(
         safe_records = [{k: v for k, v in r.items() if k not in ("comp_outer","comp_inner")} for r in records]
         json.dump({"summary": {k: v for k, v in stats.items() if k != "records"},
                    "records": safe_records}, f, indent=2)
-    print("  -> stats/dataset_stats.json")
+    print("  -> estadisticas/dataset_stats.json")
     return stats
 
 
@@ -170,7 +170,7 @@ def plot_dataset_summary(
         fig = plt.figure(figsize=(18, 12))
         gs = GridSpec(2, 3, figure=fig, wspace=0.38, hspace=0.45)
         fig.suptitle(
-            "Estadisticas del dataset sintetico — %d semillas\n"
+            "Estadisticas del dataset sintetico — %d simulaciones\n"
             "Variabilidad inter-muestra y cobertura del espacio de configuraciones"
             % n,
             fontsize=13, fontweight="bold",
@@ -190,7 +190,7 @@ def plot_dataset_summary(
         ax1.set_ylabel("kc (kBT·nm²)", fontsize=9)
         ax1.set_title(
             "kc vs composicion\n"
-            "Mayor CHOL/SM → mayor rigidez [3]",
+            "Mayor CHOL/SM -> mayor rigidez [3]",
             fontsize=9, fontweight="bold",
         )
         ax1.legend(fontsize=8)
@@ -204,7 +204,7 @@ def plot_dataset_summary(
                     thick_vals.mean() + thick_vals.std(),
                     alpha=0.15, color="#e63946", label="±σ=%.1fÅ" % thick_vals.std())
         ax2.set_xlabel("Grosor total medio (Å)", fontsize=9)
-        ax2.set_ylabel("N semillas", fontsize=9)
+        ax2.set_ylabel("N simulaciones", fontsize=9)
         ax2.set_title(
             "Distribucion de grosores\nVariabilidad composicional Dirichlet",
             fontsize=9, fontweight="bold",
@@ -228,7 +228,7 @@ def plot_dataset_summary(
         n_rafts = np.array(stats["n_rafts"])
         ax4.bar(range(n), n_rafts, color="#9b5de5", alpha=0.8,
                 edgecolor="#5a189a", lw=0.5)
-        ax4.set_xlabel("Semilla (indice)", fontsize=9)
+        ax4.set_xlabel("Simulacion (indice)", fontsize=9)
         ax4.set_ylabel("N dominios raft (sup + inf)", fontsize=9)
         ax4.set_title(
             "Variabilidad de dominios raft\nNucleacion estocastica controlada",
@@ -267,7 +267,7 @@ def plot_dataset_summary(
                         label="80%% PASS (bueno)")
             ax6.axhline(60, color="#fb8500", ls="--", lw=1.5,
                         label="60%% PASS (aceptable)")
-            ax6.set_xlabel("Semilla (indice)", fontsize=9)
+            ax6.set_xlabel("Simulacion (indice)", fontsize=9)
             ax6.set_ylabel("Score validacion (%%)", fontsize=9)
             ax6.set_ylim(0, 105)
             ax6.set_title(
@@ -311,7 +311,7 @@ def plot_ctf_comparison(
     with plt.rc_context(PLT_STYLE):
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 9))
         fig.suptitle(
-            "Comparacion de modelos de contraste — seed=%d\n"
+            "Comparacion de modelos de contraste — simulacion=%d\n"
             "Fila 1: densidad electronica | Fila 2: CTF + missing wedge + ruido"
             % membrane.seed,
             fontsize=12, fontweight="bold",
@@ -363,7 +363,7 @@ def plot_ctf_comparison(
         fig.tight_layout()
         if save_path is None:
             save_path = os.path.join(
-                _stats_dir(), "ctf_comparison_seed%04d.png" % membrane.seed
+                _stats_dir(), "ctf_comparison_simulacion%04d.png" % membrane.seed
             )
         fig.savefig(save_path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -393,7 +393,7 @@ def plot_mrc_comparison(
     with plt.rc_context(PLT_STYLE):
         fig, axes = plt.subplots(2, 3, figsize=(18, 10))
         fig.suptitle(
-            "Volumen MRC para PolNet — seed=%d\n"
+            "Volumen MRC para PolNet — simulacion=%d\n"
             "Arriba: densidad masa (envio a PolNet) | Abajo: simulacion TEM completa"
             % membrane.seed,
             fontsize=12, fontweight="bold",
@@ -440,7 +440,7 @@ def plot_mrc_comparison(
         fig.tight_layout()
         if save_path is None:
             save_path = os.path.join(
-                _stats_dir(), "mrc_comparison_seed%04d.png" % membrane.seed
+                _stats_dir(), "mrc_comparison_simulacion%04d.png" % membrane.seed
             )
         fig.savefig(save_path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)

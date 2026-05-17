@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-MODEL3D_DIR = os.path.join(OUTPUT_DIR, "model3d")
+MODEL3D_DIR = os.path.join(OUTPUT_DIR, "modelo3d")
 
 
 def _model3d_dir():
@@ -657,9 +657,9 @@ def export_physical_model_mrc(
     Exporta el modelo 3D fisico completo como archivos MRC.
 
     Genera tres archivos:
-      bilayer_physical_seed{N}.mrc       densidad electronica en e/A3
-      bilayer_physical_seed{N}_norm.mrc  normalizado [0,255] para PolNet
-      bilayer_physical_seed{N}_labels.mrc etiquetas semanticas 10 clases
+      bicapa_fisica_simulacion{N}.mrc       densidad electronica en e/A3
+      bicapa_fisica_simulacion{N}_norm.mrc  normalizado [0,255] para PolNet
+      bicapa_fisica_simulacion{N}_labels.mrc etiquetas semanticas 10 clases
 
     Ademas, genera automaticamente el script de visualizacion ParaView
     en CryoET/paraview/simulacion{N}/visualize_sim{N}.py si la carpeta
@@ -668,7 +668,7 @@ def export_physical_model_mrc(
 
     Retorna dict con rutas.
     """
-    print("  Construyendo modelo 3D fisico para seed=%d..." % membrane.seed)
+    print("  Construyendo modelo 3D  simulacion %d" % membrane.seed)
 
     vol, labels, stats = build_physical_volume(
         membrane, bins_xy=bins_xy, bins_z=bins_z, voxel_angstrom=voxel_angstrom
@@ -676,7 +676,7 @@ def export_physical_model_mrc(
 
     d = _model3d_dir()
 
-    path_ed = os.path.join(d, "bilayer_physical_seed%04d.mrc" % membrane.seed)
+    path_ed = os.path.join(d, "bicapa_fisica_simulacion%04d.mrc" % membrane.seed)
     with mrcfile.new(path_ed, overwrite=True) as mrc:
         mrc.set_data(vol.T)
         mrc.voxel_size = voxel_angstrom
@@ -684,20 +684,20 @@ def export_physical_model_mrc(
     denom = vol.max() - vol.min()
     vol_norm = (vol - vol.min()) / denom * 255.0 if denom > 0 else vol.copy()
 
-    path_norm = os.path.join(d, "bilayer_physical_seed%04d_norm.mrc" % membrane.seed)
+    path_norm = os.path.join(d, "bicapa_fisica_simulacion%04d_norm.mrc" % membrane.seed)
     with mrcfile.new(path_norm, overwrite=True) as mrc:
         mrc.set_data(vol_norm.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    path_lbl = os.path.join(d, "bilayer_physical_seed%04d_labels.mrc" % membrane.seed)
+    path_lbl = os.path.join(d, "bicapa_fisica_simulacion%04d_labels.mrc" % membrane.seed)
     with mrcfile.new(path_lbl, overwrite=True) as mrc:
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> model3d/bilayer_physical_seed%04d.mrc  %dx%dx%d voxels @ %.0f A" % (
+    print("  -> modelo3d/bicapa_fisica_simulacion%04d.mrc  %dx%dx%d voxeles  %.0f A/voxel" % (
         membrane.seed, bins_xy, bins_xy, bins_z, voxel_angstrom))
-    print("  ED cabezas: %.3f e/A3 | Raft heads: %.3f | Lo: %.3f | Ld: %.3f | CHOL: %.3f | Contraste: %.4f e/A3" % (
-        stats["ed_head_mean"], stats["ed_head_raft"], stats["ed_tail_Lo"],
+    print("  cabezas: %.3f e/A3  |  Lo: %.3f  |  Ld: %.3f  |  CHOL: %.3f  |  contraste Lo/Ld: %.4f e/A3" % (
+        stats["ed_head_mean"], stats["ed_tail_Lo"],
         stats["ed_tail_Ld"], stats["ed_chol"], stats["contrast_Lo_Ld"]))
 
     pv_dir = os.path.join(OUTPUT_DIR, "paraview", "simulacion%04d" % membrane.seed)
@@ -705,7 +705,7 @@ def export_physical_model_mrc(
         try:
             _write_paraview_state_script(membrane, pv_dir)
         except Exception as exc:
-            print("  [AVISO] No se pudo generar script ParaView: %s" % exc)
+            print("  Aviso: no se genero el script ParaView  %s" % exc)
 
     return {
         "density_ea3":  path_ed,
@@ -720,7 +720,7 @@ def plot_physical_model(
     vol: Optional[np.ndarray] = None,
     labels: Optional[np.ndarray] = None,
     stats: Optional[dict] = None,
-    save_dir: str = "CryoET/model3d",
+    save_dir: str = "CryoET/modelo3d",
 ) -> str:
     """
     Genera el panel de visualizacion del modelo 3D fisico.
@@ -770,7 +770,7 @@ def plot_physical_model(
     with plt.rc_context(PLT):
         fig, axes = plt.subplots(2, 3, figsize=(20, 15))
         fig.suptitle(
-            "Modelo 3D fisico de la bicapa lipidica — seed=%d\n"
+            "Modelo 3D fisico de la bicapa lipidica — simulacion=%d\n"
             "Densidad electronica con insaturaciones, fases Lo/Ld y PIPs"
             % membrane.seed,
             fontsize=12, fontweight="bold",
@@ -901,7 +901,7 @@ def plot_physical_model(
 
         plt.subplots_adjust(left=0.06, right=0.96, top=0.93, bottom=0.11,
                             hspace=0.55, wspace=0.35)
-        path = os.path.join(save_dir, "model3d_seed%04d.png" % membrane.seed)
+        path = os.path.join(save_dir, "modelo3d_simulacion%04d.png" % membrane.seed)
         fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)
         print("  -> %s" % path)

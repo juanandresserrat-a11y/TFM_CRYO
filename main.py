@@ -16,7 +16,7 @@ Flags:
     --size X Y         tamano en nm (default: 50 50)
     --paraview         VTP + PDB por simulacion en carpeta propia
     --model3d          volumen 3D de densidad electronica (MRC)
-    --mrc              MRC para PolNet (doble gaussiana + labels)
+    --mrc              MRC para PolNet (doble gaussiana + etiquetas)
     --positions        PDB completo + CSV + PolNet particle list
     --validate         panel de validacion 3D (composicion, ED, fases)
     --figures          figura de publicacion (8 paneles, 300 DPI)
@@ -48,7 +48,7 @@ def parse_args():
     p.add_argument("--paraview",  action="store_true",
                    help="VTP + PDB en CryoET/paraview/simulacion{N}/")
     p.add_argument("--model3d",   action="store_true",
-                   help="Volumen 3D fisico (MRC con ED real, labels, figura)")
+                   help="Volumen 3D fisico (MRC con ED real, etiquetas, figura)")
     p.add_argument("--mrc",       action="store_true",
                    help="MRC simplificado + doble gaussiana para PolNet")
     p.add_argument("--positions", action="store_true",
@@ -56,7 +56,7 @@ def parse_args():
     p.add_argument("--validate",  action="store_true",
                    help="Panel de validacion 3D: composicion, ED, fases, PIPs")
     p.add_argument("--figures",   action="store_true",
-                   help="Figura de analisis y comprobación del modelo 300 DPI en CryoET/figuras/simulacion{N}/")
+                   help="Figura de analisis y comprobacion del modelo 300 DPI en CryoET/figuras/simulacion{N}/")
     p.add_argument("--stats",     action="store_true",
                    help="Estadisticas del dataset (requiere >1 simulacion)")
     p.add_argument("--dpi",       type=int, default=200)
@@ -111,7 +111,7 @@ def main():
     sims    = list(args.sims)
     size_nm = list(args.size)
 
-    print("BicapaCryoET — %d simulacion(es) | %.0fx%.0f nm" % (
+    print("BicapaCryoET  %d simulacion(es)  %.0fx%.0f nm" % (
         len(sims), size_nm[0], size_nm[1]))
 
     for seed in sims:
@@ -123,7 +123,7 @@ def main():
                                       run_validation=args.validate)
         plot_dataset_summary(stats)
 
-    print("\nListo. Outputs en: CryoET/")
+    print("\nListo. Archivos en: CryoET/")
 
 
 if __name__ == "__main__":

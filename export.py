@@ -52,7 +52,7 @@ REFERENCES = [
 
 
 def export_training(membrane: "BicapaCryoET", bins: int = 64) -> str:
-    """Exporta los 11 canales de training y actualiza labels.json."""
+    """Exporta los 11 campos de training y actualiza labels.json."""
     d = membrane.training_dir()
 
 
@@ -114,12 +114,12 @@ def export_training(membrane: "BicapaCryoET", bins: int = 64) -> str:
         "S_CH_medio_fluido": round(float(np.mean(fluid_order)) if fluid_order else 0, 3),
         "comp_outer": {t: round(f, 4) for t, f in membrane.comp_outer.items()},
         "comp_inner": {t: round(f, 4) for t, f in membrane.comp_inner.items()},
-        "canales": CHANNEL_DESCRIPTIONS,
+        "campos": CHANNEL_DESCRIPTIONS,
         "referencias": REFERENCES,
     }
 
 
-    labels_file = os.path.join(OUTPUT_DIR, "training", "labels.json")
+    labels_file = os.path.join(OUTPUT_DIR, "entrenamiento", "labels.json")
     os.makedirs(os.path.dirname(labels_file), exist_ok=True)
     all_meta: List[dict] = []
     if os.path.exists(labels_file):
@@ -130,5 +130,5 @@ def export_training(membrane: "BicapaCryoET", bins: int = 64) -> str:
     with open(labels_file, "w") as f:
         json.dump(all_meta, f, indent=2)
 
-    print("  -> training/seed%04d/ (%d canales)" % (membrane.seed, len(channels)))
+    print("  -> entrenamiento/simulacion%04d/  %d campos guardados" % (membrane.seed, len(channels)))
     return d

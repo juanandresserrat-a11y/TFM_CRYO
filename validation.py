@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-VAL_DIR = os.path.join(OUTPUT_DIR, "validation")
+VAL_DIR = os.path.join(OUTPUT_DIR, "validacion")
 
 
 def _val_dir():
@@ -92,10 +92,8 @@ def _accuracy_score(value: float, lo: float, hi: float) -> float:
     half_w  = (hi - lo) / 2.0
     dist = abs(value - center)
     if dist <= half_w:
-        # Dentro del rango: lineal 100 % → 75 %
         return 100.0 - 25.0 * (dist / half_w)
     else:
-        # Fuera del rango: 75 % en el borde, 0 % a 2×half_w
         excess = dist - half_w
         return max(0.0, 75.0 - 75.0 * (excess / (2.0 * half_w)))
 
@@ -238,7 +236,6 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
         kc_from_helf2 = float(
             np.clip(kBT_eff * (L_nm ** 2) / (kc_r * (bins ** 2) + 1e-40), 1.0, 200.0)
         )
-        # Ratio σ/κ (nm⁻²): caracteriza la escala de cruce tensión→flexión
         sigma_over_kappa = float(sig_r / kc_r) if kc_r > 0 else 0.0
 
     except Exception:
@@ -249,17 +246,14 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
     kBT = kB * T_K
     A_nm2 = L_nm ** 2
 
-    # Usar referencia en zona de flexión pura (alta-q)
     hq_arr = q_centers[q_centers > 0.30]
     q_ref = float(np.median(hq_arr)) if len(hq_arr) > 0 else float(np.median(q_centers))
     S_ref = float(np.exp(intercept_global) * q_ref ** slope_high_q)
 
-    # Corrección por desviación de la pendiente ideal -4
     corr = float(np.clip(abs(slope_high_q / 4.0), 0.1, 2.0))
     kc_J_pl = kBT / (A_nm2 * q_ref ** 4 * S_ref + 1e-40) * corr
     kc_kBT_pl = float(np.clip(kc_J_pl / kBT, 1.0, 200.0))
 
-    # Estimación final: preferir ajuste dos-componentes cuando converge mejor
     if kc_from_helf2 is not None and r_sq_helf2 > r_sq_powerlaw:
         kc_kBT = kc_from_helf2
         r_squared = r_sq_helf2
@@ -267,24 +261,18 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
         kc_kBT = kc_kBT_pl
         r_squared = max(r_sq_powerlaw, r_sq_hq)
 
-    # Pendiente alta-q: centro -3.5 (Helfrich puro -4), tolerancia ±1.5
-    # Rango biológico real: -5 a -2 para sistemas mixtos 50×50 nm
     slope_center, slope_width = -3.5, 1.5
     acc_slope = 100.0 * np.exp(-((slope_high_q - slope_center) / slope_width) ** 2)
 
-    # κ en kBT: centro 30, tolerancia 30 (cubre 5–90 kBT)
     kc_center, kc_width = 30.0, 30.0
     acc_kc = 100.0 * np.exp(-((kc_kBT - kc_center) / kc_width) ** 2)
 
-    # R² del mejor ajuste — peso reducido (ruidoso en sistemas pequeños)
     r2_center, r2_width = 0.65, 0.35
     acc_r2 = 100.0 * np.exp(-((r_squared - r2_center) / r2_width) ** 2)
 
-    # Estadística de puntos (15 puntos = 100 %)
     n_points = len(q_centers)
     acc_npts = min(100.0, n_points * 6.5)
 
-    # Calidad ajuste Helfrich dos-componentes
     acc_helf2 = float(np.clip(r_sq_helf2 * 100.0, 0.0, 100.0)) if r_sq_helf2 > 0 else 0.0
 
     if r_sq_helf2 >= 0.30:
@@ -300,7 +288,6 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
         w_h2    * acc_helf2
     )
 
-    # Boost si los tres sub-scores principales superan el umbral CLOSE
     min_main = min(acc_slope, acc_kc, acc_r2)
     if min_main > 40.0:
         combined_accuracy = min(100.0, combined_accuracy * 1.20)
@@ -419,7 +406,6 @@ def benchmark_order_parameter(membrane: "BicapaCryoET") -> Dict:
     fluid_mean = sch["ld"]
     chol_mean = sch["chol"]
 
-    # Reconstruir listas individuales para el histograma de validación
     todos = membrane.outer_leaflet + membrane.inner_leaflet
     s_gel   = [l.order_param for l in todos if l.in_raft and l.lipid_type.name != "CHOL"]
     s_fluid = [l.order_param for l in todos if not l.in_raft and l.lipid_type.name != "CHOL"]
@@ -486,7 +472,6 @@ def benchmark_raft_correlation(membrane: "BicapaCryoET") -> Dict:
     r_vals = np.array(r_vals)
     acf_radial = np.array(acf_radial)
 
-    # Normalización robusta: fallback a máximo absoluto
     if len(acf_radial) > 0 and acf_radial[0] != 0:
         acf_radial = acf_radial / acf_radial[0]
     else:
@@ -593,7 +578,7 @@ def benchmark_electron_density(membrane: "BicapaCryoET") -> Dict:
 
 
 def run_all_benchmarks(membrane: "BicapaCryoET") -> Dict:
-    print("  Benchmarks cuantitativos para seed=%d..." % membrane.seed)
+    print("  Validando simulacion %d" % membrane.seed)
 
     results = {}
     results["helfrich"]    = benchmark_helfrich(membrane)
@@ -603,9 +588,6 @@ def run_all_benchmarks(membrane: "BicapaCryoET") -> Dict:
     results["interdig"]    = benchmark_interdigitation(membrane)
     results["electron_ed"] = benchmark_electron_density(membrane)
 
-    # Calcular score ponderado por accuracy.
-    # IMPORTANTE: si el benchmark ya expone un "accuracy" combinado (e.g. helfrich),
-    # se usa directamente para no diluirlo promediando sus sub-scores individuales.
     accuracies = []
     for name, res in results.items():
         if "accuracy" in res:
@@ -621,7 +603,7 @@ def run_all_benchmarks(membrane: "BicapaCryoET") -> Dict:
     passed = sum(1 for a in accuracies if a >= 70.0)
     total = len(accuracies)
 
-    print("  Resultados: %d/%d PASS | Score: %.3f" % (passed, total, mean_accuracy / 100.0))
+    print("  Resultado: %d/%d pruebas superadas  score: %.3f" % (passed, total, mean_accuracy / 100.0))
     for name, res in results.items():
         if "accuracy" in res:
             status = _grade_label(res["accuracy"])
@@ -631,7 +613,7 @@ def run_all_benchmarks(membrane: "BicapaCryoET") -> Dict:
                 status = _grade_label(float(np.mean(accs)))
             else:
                 status = "PASS" if res.get("pass", False) else "FAIL"
-        print("    [%s] %s" % (status, name))
+        print("    %s  %s" % (status, name))
 
     results["summary"] = {
         "seed": membrane.seed,
@@ -656,7 +638,7 @@ def plot_validation_panel(
         fig = plt.figure(figsize=(20, 14))
         gs = GridSpec(2, 3, figure=fig, wspace=0.35, hspace=0.45)
         fig.suptitle(
-            "Validacion cuantitativa del modelo — seed=%d\n"
+            "Validacion cuantitativa del modelo — simulacion=%d\n"
             "Benchmarks fisicos contra rangos experimentales de cryo-ET"
             % membrane.seed,
             fontsize=13, fontweight="bold",
@@ -857,7 +839,7 @@ def plot_validation_panel(
 
         if save_path is None:
             save_path = os.path.join(
-                _val_dir(), "validation_seed%04d.png" % membrane.seed
+                _val_dir(), "validacion_simulacion%04d.png" % membrane.seed
             )
         fig.savefig(save_path, dpi=200, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -866,9 +848,6 @@ def plot_validation_panel(
 
 
 def save_benchmark_json(results: Dict, membrane: "BicapaCryoET"):
-    # Claves de datos brutos que no aportan al JSON de resumen y se omiten
-    # explicitamente por nombre, no por longitud, para no perder datos como
-    # q_centers (24 elementos) que si son relevantes para el benchmark Helfrich.
     RAW_KEYS = {
         "s_gel", "s_fluid", "q_centers", "p_mean",
         "r_vals", "acf", "kde", "t_range", "ed_profile", "z_centers", "peaks",
@@ -897,7 +876,7 @@ def save_benchmark_json(results: Dict, membrane: "BicapaCryoET"):
             for kk, vv in v.items()
             if kk not in RAW_KEYS
         }
-    path = os.path.join(_val_dir(), "benchmarks_seed%04d.json" % membrane.seed)
+    path = os.path.join(_val_dir(), "benchmarks_simulacion%04d.json" % membrane.seed)
     with open(path, "w") as f:
         json.dump(clean, f, indent=2)
     print("  -> %s" % path)

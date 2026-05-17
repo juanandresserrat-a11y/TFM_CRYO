@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from geometry import LipidInstance
 
 
-POS_DIR = os.path.join(OUTPUT_DIR, "positions")
+POS_DIR = os.path.join(OUTPUT_DIR, "posiciones")
 
 
 def _pos_dir():
@@ -115,11 +115,11 @@ def export_pdb(
         para que la membrana pueda visualizarse sin discontinuidades en bordes
     """
     if path is None:
-        path = os.path.join(_pos_dir(), "bilayer_seed%04d.pdb" % membrane.seed)
+        path = os.path.join(_pos_dir(), "bicapa_simulacion%04d.pdb" % membrane.seed)
 
     lines = []
     lines.append(
-        "REMARK  BicapaCryoET v15 — seed %d — %.0fx%.0f nm"
+        "REMARK  BicapaCryoET v15 — simulacion %d — %.0fx%.0f nm"
         % (membrane.seed, membrane.Lx / 10, membrane.Ly / 10)
     )
     lines.append(
@@ -200,10 +200,7 @@ def export_pdb(
         f.write("\n".join(lines) + "\n")
 
     n_atoms = atom_idx - 1
-    print(
-        "  -> %s  (%d atomos CG, %d residuos)"
-        % (os.path.basename(path), n_atoms, res_idx - 1)
-    )
+    print("  -> %s  %d atomos  %d residuos" % (os.path.basename(path), n_atoms, res_idx - 1))
     return path
 
 
@@ -234,7 +231,7 @@ def export_csv_positions(
     """
     if path is None:
         path = os.path.join(
-            _pos_dir(), "positions_seed%04d.csv" % membrane.seed
+            _pos_dir(), "posiciones_simulacion%04d.csv" % membrane.seed
         )
 
     fieldnames = [
@@ -287,10 +284,7 @@ def export_csv_positions(
                     for si, pt in enumerate(lip.tail2):
                         writer.writerow(row("TAIL2_%d" % si, pt))
 
-    print(
-        "  -> %s  (%d lipidos, include_tails=%s)"
-        % (os.path.basename(path), len(todos), include_tails)
-    )
+    print("  -> %s  %d lipidos" % (os.path.basename(path), len(todos)))
     return path
 
 
@@ -321,7 +315,7 @@ def export_polnet_particle_list(
     """
     if path is None:
         path = os.path.join(
-            _pos_dir(), "polnet_particles_seed%04d.csv" % membrane.seed
+            _pos_dir(), "polnet_particulas_simulacion%04d.csv" % membrane.seed
         )
 
     def vec_to_quaternion(v: np.ndarray) -> Tuple[float, float, float, float]:
@@ -383,10 +377,7 @@ def export_polnet_particle_list(
         writer.writeheader()
         writer.writerows(rows)
 
-    print(
-        "  -> %s  (%d particulas, formato PolNet)"
-        % (os.path.basename(path), len(rows))
-    )
+    print("  -> %s  %d particulas" % (os.path.basename(path), len(rows)))
     return path
 
 
@@ -394,8 +385,8 @@ def export_all_positions(
     membrane: "BicapaCryoET",
     include_tails: bool = True,
 ) -> dict:
-    
-    print("  Exportando posiciones 3D para seed=%d..." % membrane.seed)
+
+    print("  Exportando posiciones 3D  simulacion %d" % membrane.seed)
     return {
         "pdb":    export_pdb(membrane),
         "csv":    export_csv_positions(membrane, include_tails=include_tails),

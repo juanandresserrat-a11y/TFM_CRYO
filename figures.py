@@ -289,7 +289,7 @@ def plot_fig1_perfil_ED(membrane, vol, stats, dpi=300):
         ax.set_xlabel("Densidad electrónica ($e \\cdot \\AA^{-3}$)")
         ax.set_ylabel("Posición axial Z (nm)")
         ax.set_title("Perfil 1D de densidad electrónica\n"
-                     "Simulación %d | Patrón dark-bright-dark cryo-ET" % seed)
+                     "Simulacion %d | Patron dark-bright-dark cryo-ET" % seed)
         ax.legend(fontsize=7.5, loc="upper left", framealpha=0.9)
         ax.set_xlim(0.26, 0.53)
         ax.grid(True, alpha=0.3)
@@ -303,7 +303,7 @@ def plot_fig1_perfil_ED(membrane, vol, stats, dpi=300):
                             "fig1_sim%04d_perfil_ED.png" % seed)
         fig.savefig(path, dpi=dpi, facecolor="white")
         plt.close(fig)
-        print("  -> figuras/simulacion%04d/fig1_sim%04d_perfil_ED.png" % (seed, seed))
+        print("  -> figuras/simulacion%04d/fig1_sim%04d_perfil_ED.png  generada" % (seed, seed))
     return path
 
 # Fig 2: Composición lipídica
@@ -818,7 +818,7 @@ def plot_fig8_parametros(membrane, stats, dpi=300):
         ax.axis("off")
         fig.suptitle(
             "Parámetros físicos de la membrana — Simulación %d\n"
-            "Valores simulados frente a rangos experimentales publicados" % seed,
+            "Valores simulados frente a rangos experimentales" % seed,
             fontsize=10, fontweight="bold", y=0.986)
 
         col_labels = ["Sección", "Parámetro",

@@ -27,27 +27,27 @@ TFM/
 ├── electron_density.py      # Densidad electrónica real por tipo lipídico (e·Å⁻³)
 ├── ctf_sim.py               # Simulación TEM: CTF, missing wedge, ruido
 ├── figures.py               # Figuras de publicación (9 paneles, 300 DPI)
-├── model_3d.py              # Modelo 3D físico: volumen ED, labels, panel visual
-├── export.py                # Exportación de campos .npy y labels.json
+├── model_3d.py              # Modelo 3D físico: volumen ED, etiquetas, panel visual
+├── export.py                # Exportación de campos .npy y etiquetas.json
 ├── export_mrc.py            # Exportación MRC para PolNet (densidad + etiquetas)
 ├── export_paraview.py       # Exportación VTP para ParaView (granos CG)
 ├── export_positions.py      # Posiciones 3D: PDB, CSV, PolNet particle list
 ├── validation.py            # Benchmarks biofísicos y panel de validación
-├── dataset_stats.py         # Estadísticas de dataset multi-semilla
+├── dataset_stats.py         # Estadísticas de dataset multi-simulación
 ├── results.py               # Figuras de resultados para TFM (R1–R6)
 ├── README.md                # Este archivo
 ├── requirements.txt         # Dependencias
 └── CryoET/                  # Outputs generados (creado automáticamente)
     ├── figuras/
-    │   └── simulacion{N}/   # Figuras PNG de publicación por semilla
-    ├── training/
-    │   ├── seed{N}/         # Campos .npy por semilla
-    │   └── labels.json      # Metadatos agregados de todas las semillas
+    │   └── simulacion{N}/   # Figuras PNG de publicación por simulación
+    ├── entrenamiento/
+    │   ├── simulacion{N}/   # Campos .npy por simulación
+    │   └── labels.json      # Metadatos agregados de todas las simulaciones
     ├── mrc/                 # Volúmenes MRC para PolNet
     ├── paraview/            # Archivos VTP para ParaView
-    ├── positions/           # PDB, CSV y particle list
-    ├── model3d/             # Volúmenes 3D físicos
-    ├── validation/          # JSONs de benchmarks y paneles de validación
+    ├── posiciones/          # PDB, CSV y particle list
+    ├── modelo3d/            # Volúmenes 3D físicos
+    ├── validacion/          # JSONs de benchmarks y paneles de validación
     └── resultados/          # PDFs de resultados para TFM (R1–R6)
 ```
 
@@ -62,22 +62,22 @@ pip install -r requirements.txt
 
 ---
 
-## 2. Generar semillas — `main.py`
+## 2. Generar simulaciones — `main.py`
 
-Cada **semilla** genera una membrana diferente con composición lipídica ligeramente
+Cada **simulación** genera una membrana diferente con composición lipídica ligeramente
 distinta (muestreo Dirichlet). Los datos generados son la base para todo lo demás.
 
-### Mínimo — campos de training
+### Mínimo — campos de entrenamiento
 
 ```bash
-# Una semilla
+# Una simulación
 python main.py --sims 1
 
-# Varias semillas a la vez
+# Varias simulaciones a la vez
 python main.py --sims 1 2 3 4 5
 ```
 
-Genera `CryoET/training/seed{N}/` con los 12 campos `.npy` y actualiza `labels.json`.
+Genera `CryoET/entrenamiento/simulacion{N}/` con los 12 campos `.npy` y actualiza `labels.json`.
 
 ### Con validación biofísica
 
@@ -103,10 +103,10 @@ python main.py --sims 27 --figures    # Figuras de publicación PNG
 ### Dataset completo para ML
 
 ```bash
-# 50 semillas, solo training (rápido, sin figuras)
+# 50 simulaciones, solo entrenamiento (rápido, sin figuras)
 python main.py --sims $(seq 0 49) --stats
 
-# 100 semillas con validación
+# 100 simulaciones con validación
 python main.py --sims $(seq 0 99) --validate --stats
 ```
 
@@ -114,14 +114,14 @@ python main.py --sims $(seq 0 99) --validate --stats
 
 | Flag | Descripción |
 |---|---|
-| `--sims N [N ...]` | Semillas a simular (default: 27 42) |
+| `--sims N [N ...]` | Simulaciones a generar (default: 27 42) |
 | `--paraview` | Exporta VTP + README para ParaView |
 | `--model3d` | Volumen 3D de densidad electrónica real (MRC) |
 | `--mrc` | MRC simplificado + doble gaussiana para PolNet |
 | `--positions` | PDB completo + CSV + PolNet particle list |
 | `--validate` | Panel de validación biofísica (9 benchmarks) |
 | `--figures` | Figuras de publicación (9 paneles, 300 DPI) |
-| `--stats` | Estadísticas del dataset (requiere >1 semilla) |
+| `--stats` | Estadísticas del dataset (requiere >1 simulación) |
 | `--dpi N` | Resolución de figuras (default: 200) |
 | `--all` | Activa: paraview + model3d + validate + mrc + positions |
 
@@ -137,10 +137,10 @@ de resultados de TFM. Lee los datos ya generados por `main.py`.
 ### Uso básico
 
 ```bash
-# Todas las figuras (R1–R6) para una semilla
+# Todas las figuras (R1–R6) para una simulación
 python results.py --sims 1
 
-# Varias semillas — activa R6 multi-semilla automáticamente
+# Varias simulaciones — activa R6 multi-simulación automáticamente
 python results.py --sims 1 2 3 4 5
 
 # Solo secciones específicas
@@ -167,31 +167,31 @@ Los PDFs se guardan en `CryoET/resultados/`.
 
 ### Secciones disponibles (R1–R6)
 
-| Sección | PDF generado | Contenido | Semillas |
+| Sección | PDF generado | Contenido | Simulaciones |
 |---|---|---|---|
-| `R1` | `R1_caracterizacion_seed{N}.pdf` | Composición, parámetros elásticos, perfil ED, grosor Lo/Ld | 1 |
-| `R2` | `R2_validacion_seed{N}.pdf` | Tabla de benchmarks, Helfrich, S_CH, interdigitación | 1 |
-| `R3` | `R3_organizacion_lateral_seed{N}.pdf` | Mapa Lo/Ld, PIPs sobre fase, S_CH 2D, densidad PIPs | 1 |
-| `R4` | `R4_campos_training_seed{N}.pdf` | Galería de los 12 campos .npy en cuadrícula 3×4 | 1 |
-| `R5` | `R5_calidad_cryoET_seed{N}.pdf` | Imagen limpia / CTF / ruido, espectros PSD, curvas CTF | 1 |
-| `R6` | `R6_comparativa_multisimulacion.pdf` | Violinplots kc/grosor/S_CH, score por semilla, composición ± DE | ≥2 |
+| `R1` | `R1_caracterizacion_simulacion{N}.pdf` | Composición, parámetros elásticos, perfil ED, grosor Lo/Ld | 1 |
+| `R2` | `R2_validacion_simulacion{N}.pdf` | Tabla de benchmarks, Helfrich, S_CH, interdigitación | 1 |
+| `R3` | `R3_organizacion_lateral_simulacion{N}.pdf` | Mapa Lo/Ld, PIPs sobre fase, S_CH 2D, densidad PIPs | 1 |
+| `R4` | `R4_campos_entrenamiento_simulacion{N}.pdf` | Galería de los 12 campos .npy en cuadrícula 3×4 | 1 |
+| `R5` | `R5_calidad_cryoET_simulacion{N}.pdf` | Imagen limpia / CTF / ruido, espectros PSD, curvas CTF | 1 |
+| `R6` | `R6_comparativa_multisimulacion.pdf` | Violinplots kc/grosor/S_CH, score por simulación, composición ± DE | ≥2 |
 | `R6b` | `R6b_justificacion_N.pdf` | Convergencia acumulada para justificar N=5 | ≥2 |
 
-> R6 y R6b requieren al menos 2 semillas y se saltan automáticamente si solo hay una.
+> R6 y R6b requieren al menos 2 simulaciones y se saltan automáticamente si solo hay una.
 
 ### Flags de results.py
 
 | Flag | Descripción |
 |---|---|
-| `--sims N [N ...]` | Semillas a procesar (ya generadas con main.py) |
+| `--sims N [N ...]` | Simulaciones a procesar (ya generadas con main.py) |
 | `--only R1 R3 ...` | Generar solo esas secciones (R1–R6) |
 | `--dpi N` | Resolución de salida en DPI (default: 300) |
 
 ---
 
-## 4. Campos de training generados
+## 4. Campos de entrenamiento generados
 
-Por cada semilla en `CryoET/training/seed{N}/`:
+Por cada simulación en `CryoET/entrenamiento/simulacion{N}/`:
 
 | Archivo | Descripción | Unidades |
 |---|---|---|
@@ -216,8 +216,8 @@ Los campos están numerados consecutivamente c0–c11 (12 campos en total, 64×6
 ```python
 import numpy as np, json, os
 
-seed = 1
-base = f"CryoET/training/seed{seed:04d}/"
+sim = 1
+base = f"CryoET/entrenamiento/simulacion{sim:04d}/"
 
 # Campo individual
 c0 = np.load(base + "c0_cryoET.npy")          # shape (64, 64)
@@ -226,10 +226,10 @@ c0 = np.load(base + "c0_cryoET.npy")          # shape (64, 64)
 files = sorted(f for f in os.listdir(base) if f.endswith(".npy"))
 tensor = np.stack([np.load(base + f) for f in files])  # shape (12, 64, 64)
 
-# Metadatos de la semilla
-with open("CryoET/training/labels.json") as f:
+# Metadatos de la simulación
+with open("CryoET/entrenamiento/labels.json") as f:
     labels = json.load(f)
-meta = next(m for m in labels if m["seed"] == seed)
+meta = next(m for m in labels if m["seed"] == sim)
 print(meta["kc_kBT_nm2"], meta["grosor_total_A"], meta["comp_outer"])
 ```
 
@@ -242,10 +242,11 @@ print(meta["kc_kBT_nm2"], meta["grosor_total_A"], meta["comp_outer"])
 ```bash
 python main.py --sims 27 --mrc
 # Salida: CryoET/mrc/
-#   bilayer_seed{N}.mrc            densidad 3D normalizada
-#   bilayer_seed{N}_labels.mrc     etiquetas: 0=agua 1=cabeza_ext 2=nucleo 3=cabeza_int
-#   bilayer_gaussian_seed{N}.mrc   perfil doble gaussiana compatible PolNet
-#   config_seed{N}.yaml            polnet --config config_seed{N}.yaml
+#   bicapa_simulacion{N}.mrc                   densidad 3D normalizada
+#   bicapa_simulacion{N}_etiquetas.mrc         etiquetas: 0=agua 1=cabeza_ext 2=nucleo 3=cabeza_int
+#   bicapa_gaussiana_simulacion{N}.mrc         perfil doble gaussiana compatible PolNet
+#   bicapa_simulacion{N}_etiquetas_cerradas.mrc  etiquetas con cierre morfológico
+#   config_simulacion{N}.yaml                  polnet --config config_simulacion{N}.yaml
 ```
 
 ### ParaView (VTP)
@@ -260,10 +261,10 @@ python main.py --sims 27 --paraview
 
 ```bash
 python main.py --sims 27 --positions
-# Salida: CryoET/positions/
-#   bilayer_seed{N}.pdb            compatible PyMOL, ChimeraX, VMD
-#   positions_seed{N}.csv          tabla xyz + fase + orden + raft + PIP
-#   polnet_particles_seed{N}.csv   orientación en cuaternión para PolNet
+# Salida: CryoET/posiciones/
+#   bicapa_simulacion{N}.pdb               compatible PyMOL, ChimeraX, VMD
+#   posiciones_simulacion{N}.csv           tabla xyz + fase + orden + raft + PIP
+#   polnet_particulas_simulacion{N}.csv    orientación en cuaternión para PolNet
 ```
 
 ---
@@ -281,7 +282,7 @@ python main.py --sims 27 --positions
 | POPS | — | 14% |
 | PI / PIPs | 4% | 16% |
 
-La composición varía entre semillas mediante muestreo Dirichlet (k=50).
+La composición varía entre simulaciones mediante muestreo Dirichlet (k=50).
 
 ---
 

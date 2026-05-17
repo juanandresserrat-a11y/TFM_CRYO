@@ -4,15 +4,15 @@ Exportacion para ParaView por simulacion.
 
 Estructura de salida:
   CryoET/paraview/simulacion{N}/
-    bilayer_sim{N}.vtp          todos los granos + bonds
-    bilayer_sim{N}_heads.vtp    cabezas polares
-    bilayer_sim{N}_tails.vtp    colas acil (sn1, sn2, CHOL)
-    bilayer_sim{N}_rafts.vtp    dominios Lo
-    bilayer_sim{N}_pips.vtp     regiones PIPs
-    bilayer_sim{N}_chol.vtp     colesterol (region 4)
-    bilayer_sim{N}_ext.vtp      monocapa externa
-    bilayer_sim{N}_int.vtp      monocapa interna
-    bilayer_heads_sim{N}.pdb    cabezas en formato PDB
+    bicapa_sim{N}.vtp          todos los granos + bonds
+    bicapa_sim{N}_heads.vtp    cabezas polares
+    bicapa_sim{N}_tails.vtp    colas acil (sn1, sn2, CHOL)
+    bicapa_sim{N}_rafts.vtp    dominios Lo
+    bicapa_sim{N}_pips.vtp     regiones PIPs
+    bicapa_sim{N}_chol.vtp     colesterol (region 4)
+    bicapa_sim{N}_ext.vtp      monocapa externa
+    bicapa_sim{N}_int.vtp      monocapa interna
+    bicapa_cabezas_sim{N}.pdb    cabezas en formato PDB
 
 Propiedades:
   is_pip   = 1 si lipido PIP
@@ -22,7 +22,7 @@ Propiedades:
 El colesterol se asigna completamente a region 4.
 
 Uso en ParaView:
-  Open -> bilayer_sim{N}.vtp
+  Open -> bicapa_sim{N}.vtp
   Apply -> Tube filter (radius 1.2)
   Color -> electron_density
 
@@ -257,7 +257,7 @@ def export_vtp(membrane, d=None):
     """VTP principal con todos los granos, bonds y propiedades."""
     if d is None:
         d = _sim_pv_dir(membrane.seed)
-    path = os.path.join(d, "bilayer_sim%04d.vtp" % membrane.seed)
+    path = os.path.join(d, "bicapa_sim%04d.vtp" % membrane.seed)
 
     atoms, bonds = _build_atoms_and_bonds(membrane)
     prop_order = [
@@ -268,7 +268,7 @@ def export_vtp(membrane, d=None):
     ]
     _write_vtp(path, atoms, bonds, prop_order)
     size_mb = os.path.getsize(path) / 1e6
-    print("  -> %s  (%d granos, %d enlaces, %.1f MB)" % (
+    print("  -> %s  %d granos  %d enlaces  %.1f MB" % (
         os.path.basename(path), len(atoms["x"]), len(bonds), size_mb))
     return path, atoms, bonds
 
@@ -296,9 +296,9 @@ def export_vtp_by_region(membrane, atoms, bonds, d=None):
         sub    = {k: v[mask] for k,v in atoms.items()}
         sbonds = [(remap[a], remap[b]) for a,b in bonds
                   if a in remap and b in remap]
-        p = os.path.join(d, "bilayer_sim%04d_%s.vtp" % (sid, tag))
+        p = os.path.join(d, "bicapa_sim%04d_%s.vtp" % (sid, tag))
         _write_vtp(p, sub, sbonds, PROPS)
-        print("  -> %s  (%d pts, %d bonds)" % (
+        print("  -> %s  %d puntos  %d enlaces" % (
             os.path.basename(p), len(idx_old), len(sbonds)))
         return p
 
@@ -323,7 +323,7 @@ def export_pdb_heads(membrane, d=None):
     """PDB solo cabezas polares. Compatible PyMOL/ChimeraX/VMD."""
     if d is None:
         d = _sim_pv_dir(membrane.seed)
-    path = os.path.join(d, "bilayer_heads_sim%04d.pdb" % membrane.seed)
+    path = os.path.join(d, "bicapa_cabezas_sim%04d.pdb" % membrane.seed)
 
     RES = {"POPC":"PPC","POPE":"PPE","POPS":"PPS","PI":"PPI",
            "PI3P":"P3P","PI4P":"P4P","PI5P":"P5P","PI34P2":"P34",
@@ -349,7 +349,7 @@ def export_pdb_heads(membrane, d=None):
         lines.append("TER")
     lines.append("END")
     with open(path,"w") as f: f.write("\n".join(lines)+"\n")
-    print("  -> %s  (%d cabezas, PDB)" % (os.path.basename(path), ai-1))
+    print("  -> %s  %d cabezas" % (os.path.basename(path), ai-1))
     return path
 
 
@@ -358,8 +358,7 @@ def export_all_paraview(membrane):
     Exporta todos los formatos en CryoET/paraview/simulacion{N}/.
     """
     d = _sim_pv_dir(membrane.seed)
-    print("  Exportando ParaView -> simulacion%04d/ (seed=%d)..." % (
-        membrane.seed, membrane.seed))
+    print("  Exportando ParaView  simulacion %d" % membrane.seed)
 
     vtp_path, atoms, bonds = export_vtp(membrane, d)
 
@@ -375,6 +374,6 @@ def export_all_paraview(membrane):
     n_raft_grains    = int((atoms["in_raft"]==1).sum())
     n_protein_grains = int((atoms["is_protein"]==1).sum())
     n_proteins       = len(getattr(membrane, "perturbations", []))
-    print("  CHOL granos (region=4): %d | PIP cabezas: %d | Raft granos: %d | Proteinas: %d (%d granos)" % (
+    print("  CHOL: %d granos  |  PIP cabezas: %d  |  raft: %d granos  |  proteinas: %d (%d granos)" % (
         n_chol_grains, n_pip_heads, n_raft_grains, n_proteins, n_protein_grains))
     return paths

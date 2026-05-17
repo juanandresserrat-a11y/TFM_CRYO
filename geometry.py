@@ -71,7 +71,7 @@ class LipidInstance:
 
     @property
     def z(self):
-        return self.head_pos[26]
+        return self.head_pos[2]
 
     @property
     def name(self):

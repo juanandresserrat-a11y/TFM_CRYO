@@ -6,10 +6,10 @@ PolNet genera tomogramas sinteticos de cryo-ET a partir de volumenes de
 densidad y etiquetas semanticas en formato MRC.
 
 Este modulo genera dos archivos por semilla:
-  bilayer_seed{N}.mrc
+  bicapa_simulacion{N}.mrc
     volumen 3D de densidad normalizada (entrada PolNet)
 
-  bilayer_seed{N}_labels.mrc
+  bicapa_simulacion{N}_etiquetas.mrc
     volumen 3D de etiquetas semanticas
 
 Etiquetas:
@@ -67,14 +67,14 @@ def export_density_mrc(
 
     H_norm = (H / H.max() * 255.0).astype(np.float32)
 
-    fname = "bilayer_seed%04d.mrc" % membrane.seed
+    fname = "bicapa_simulacion%04d.mrc" % membrane.seed
     path = os.path.join(_mrc_dir(), fname)
 
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(H_norm.T)
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  (%.0f x %.0f x %.0f voxels, %.0f A/voxel)" % (
+    print("  -> mrc/%s  %.0fx%.0fx%.0f voxeles  %.0f A/voxel" % (
         fname,
         H_norm.shape[0], H_norm.shape[1], H_norm.shape[2],
         voxel_angstrom,
@@ -131,14 +131,14 @@ def export_label_mrc(
         else:
             labels[:, :, iz] = 2
 
-    fname = "bilayer_seed%04d_labels.mrc" % membrane.seed
+    fname = "bicapa_simulacion%04d_etiquetas.mrc" % membrane.seed
     path = os.path.join(_mrc_dir(), fname)
 
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  (labels: 0=fondo 1=ext 2=hidro 3=int)" % fname)
+    print("  -> mrc/%s  etiquetas: fondo · ext · hidrofobico · int" % fname)
     return path
 
 
@@ -149,7 +149,7 @@ def export_mrc(
     bins_z: int = 40,
 ) -> dict:
     """Exporta densidad y etiquetas MRC en una sola llamada."""
-    print("  Exportando MRC para seed=%d..." % membrane.seed)
+    print("  Exportando MRC  simulacion %d" % membrane.seed)
     path_density = export_density_mrc(membrane, voxel_angstrom, bins_xy, bins_z)
     path_labels  = export_label_mrc(membrane, voxel_angstrom, bins_xy, bins_z)
     return {"density": path_density, "labels": path_labels}
@@ -168,18 +168,18 @@ def generate_polnet_yaml(
     El YAML referencia directamente los archivos MRC exportados.
     """
     density_path = os.path.abspath(os.path.join(
-        _mrc_dir(), "bilayer_seed%04d.mrc" % membrane.seed
+        _mrc_dir(), "bicapa_simulacion%04d.mrc" % membrane.seed
     ))
 
     yaml_content = (
         "metadata:\n"
-        "  description: BicapaCryoET seed%(seed)d → PolNet pipeline\n"
+        "  description: BicapaCryoET simulacion%(seed)d -> PolNet pipeline\n"
         "  author: BicapaCryoET v15\n"
         "\n"
         "folders:\n"
         "  root: ./\n"
-        "  input: ./polnet_input/\n"
-        "  output: ./polnet_output/seed%(seed)04d/\n"
+        "  input: ./polnet_entrada/\n"
+        "  output: ./polnet_salida/simulacion%(seed)04d/\n"
         "\n"
         "global:\n"
         "  ntomos: 1\n"
@@ -200,7 +200,7 @@ def generate_polnet_yaml(
         "# Instrucciones:\n"
         "#   1. Instala PolNet: pip install polnet\n"
         "#   2. Ejecuta: polnet --config %(yaml_name)s\n"
-        "#   3. El tomograma simulado estara en polnet_output/seed%(seed)04d/\n"
+        "#   3. El tomograma simulado estara en polnet_salida/simulacion%(seed)04d/\n"
         "#\n"
         "# Referencia:\n"
         "#   Martinez-Sanchez et al. IEEE Trans. Med. Imaging 2024\n"
@@ -217,15 +217,15 @@ def generate_polnet_yaml(
         "tmin":     tilt_range[0],
         "tmax":     tilt_range[1],
         "tstep":    tilt_range[2],
-        "yaml_name": "config_seed%04d.yaml" % membrane.seed,
+        "yaml_name": "config_simulacion%04d.yaml" % membrane.seed,
     }
 
-    yaml_name = "config_seed%04d.yaml" % membrane.seed
+    yaml_name = "config_simulacion%04d.yaml" % membrane.seed
     yaml_path = os.path.join(_mrc_dir(), yaml_name)
     with open(yaml_path, "w") as f:
         f.write(yaml_content)
 
-    print("  -> mrc/%s  (plantilla PolNet lista)" % yaml_name)
+    print("  -> mrc/%s  plantilla PolNet lista" % yaml_name)
     return yaml_path
 
 
@@ -285,13 +285,13 @@ def export_double_gaussian_mrc(
     vol_smooth = gaussian_filter(vol, sigma=[1.0, 1.0, 0.6])
     vol_norm   = (vol_smooth / vol_smooth.max() * 255.0).astype(np.float32)
 
-    fname = "bilayer_gaussian_seed%04d.mrc" % membrane.seed
+    fname = "bicapa_gaussiana_simulacion%04d.mrc" % membrane.seed
     path  = os.path.join(_mrc_dir(), fname)
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(vol_norm.T)
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  (perfil doble gaussiana, compatible PolNet)" % fname)
+    print("  -> mrc/%s  perfil doble gaussiana" % fname)
     return path
 
 
@@ -330,11 +330,11 @@ def export_label_mrc_with_closing(
         closed = binary_closing(mask, structure=struct, iterations=1)
         labels[closed & (labels == 0)] = label_val
 
-    fname = "bilayer_seed%04d_labels_closed.mrc" % membrane.seed
+    fname = "bicapa_simulacion%04d_etiquetas_cerradas.mrc" % membrane.seed
     path  = os.path.join(_mrc_dir(), fname)
     with mrcfile.new(path, overwrite=True) as mrc:
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/%s  (labels con closing morfologico)" % fname)
+    print("  -> mrc/%s  etiquetas con cierre morfologico" % fname)
     return path
