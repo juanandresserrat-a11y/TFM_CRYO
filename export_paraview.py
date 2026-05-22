@@ -14,23 +14,23 @@ Estructura de salida:
     bicapa_sim{N}_int.vtp      monocapa interna
     bicapa_cabezas_sim{N}.pdb    cabezas en formato PDB
 
-Propiedades:
-  is_pip   = 1 si lipido PIP
-  pip_head = 1 en el grano cabeza de PIP
-  region   = 0 cabeza, 1 glicerol, 2 sn1, 3 sn2, 4 CHOL
-
-El colesterol se asigna completamente a region 4.
-
-Uso en ParaView:
-  Open -> bicapa_sim{N}.vtp
-  Apply -> Tube filter (radius 1.2)
-  Color -> electron_density
+Propiedades por grano:
+  region         = 0 cabeza, 1 glicerol, 2 sn1, 3 sn2, 4 CHOL, 5 proteina
+  is_pip         = 1 si lipido PIP (solo monocapa interna)
+  pip_head       = 1 en el grano cabeza de PIP
+  electron_density = ED fisica en e/Å³ (valores absolutos, rango estrecho)
+  ed_tail_norm   = ED de cola normalizada a [0,1] sobre el rango de colas
+                   [ED_TAIL_MIN=0.280, ED_TAIL_MAX=0.312]. Amplifica x8 el
+                   contraste raft vs no-raft para visualizacion en ParaView.
+                   Usar esta propiedad en Tube filter para ver dominios Lo.
+  ed_raft_score  = puntuacion de enriquecimiento en raft por grano:
+                   combina in_raft + phase_gel + ed_tail_norm. Rango [0,1].
 
 Referencias principales:
-    [4] Chaisson et al. 2025 – cuantificación de interdigitación en bicapas simuladas mediante interacciones trans-bicapa
-    [11] Kučerka et al. 2008 – determinación experimental de espesores y áreas lipídicas en bicapas fosfolipídicas
-    [18] Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y modelos de densidad electrónica
-    [20] Piggot et al. 2017 – cálculo del parámetro de orden S_CH a partir de simulaciones de lípidos
+    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y modelos de densidad electrónica
+    [16]  Piggot et al. 2017 – cálculo del parámetro de orden S_CH a partir de simulaciones de lípidos
+    [18]  Chaisson et al. 2025 – cuantificación de interdigitación en bicapas simuladas mediante interacciones trans-bicapa
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ import os
 from typing import TYPE_CHECKING, Optional
 import numpy as np
 from builder import OUTPUT_DIR
-from electron_density import LIPID_ED_HEADGROUP, LIPID_ED_TAIL
+from electron_density import LIPID_ED_HEADGROUP, LIPID_ED_TAIL, ED_TAIL_MIN, ED_TAIL_MAX
 
 if TYPE_CHECKING:
     from builder import BicapaCryoET
@@ -59,16 +59,40 @@ def _sim_pv_dir(seed):
 
 
 def _tail_ed(lname, seg_i, seg_total, ndb):
-    """ED de un segmento de cola con efecto de insaturacion."""
+    """
+    ED de un segmento de cola con efecto de insaturacion.
+    """
     base = LIPID_ED_TAIL.get(lname, 0.292)
+
     if lname == "CHOL":
-        return 0.302 if seg_i / max(seg_total-1,1) <= 0.45 else 0.280
+        frac = seg_i / max(seg_total - 1, 1)
+        if frac <= 0.70:
+            return 0.308
+        else:
+            t = (frac - 0.70) / 0.30
+            return float(0.308 - 0.023 * (1 - np.exp(-5*t)) / (1 - np.exp(-5)))
+
     if ndb > 0 and seg_total > 1:
         frac = seg_i / (seg_total - 1)
         base -= ndb * UNSATURATION_PENALTY * np.exp(-0.5*((frac - 0.5)/0.2)**2)
+
     if lname == "PlsPE" and seg_i == 0:
         base -= 0.004
+
     return float(np.clip(base, 0.25, 0.32))
+
+
+def _ed_tail_norm(ed_val):
+    """
+    Normaliza un valor de ED de cola al rango [0, 1].
+
+    Rango fisico: [ED_TAIL_MIN=0.280, ED_TAIL_MAX=0.312]
+    Amplifica x8 el contraste respecto a la escala completa [0.280, 0.498].
+
+    Uso: colorear Tube filter en ParaView para distinguir dominios raft
+    (CHOL 0.308 → 0.88, SM 0.287 → 0.22) de no-raft (POPC 0.294 → 0.44).
+    """
+    return float(np.clip((ed_val - ED_TAIL_MIN) / (ED_TAIL_MAX - ED_TAIL_MIN), 0.0, 1.0))
 
 
 def _build_atoms_and_bonds(membrane):
@@ -76,6 +100,7 @@ def _build_atoms_and_bonds(membrane):
     xs, ys, zs = [], [], []
     lipid_id_arr, leaflet_arr, bead_type_arr, seg_idx_arr = [], [], [], []
     order_p, in_raft_arr, is_pip_arr, ed_arr = [], [], [], []
+    ed_tail_norm_arr, ed_raft_score_arr = [], []
     ndb_arr, phase_arr, nc_arr = [], [], []
     region_arr, is_head_arr, is_glycerol_arr, is_tail_arr = [], [], [], []
     pip_head_arr = []
@@ -91,15 +116,16 @@ def _build_atoms_and_bonds(membrane):
             lid   = LIPID_ID.get(lname, 99)
             op    = float(lip.order_param)
             ir    = int(lip.in_raft)
-            # CORRECCION: PIP solo si es especie PIP Y monocapa interna
-            ip    = int(lname in PIP_SPECIES and chain_id == 1)
+            # PIP solo si es especie PIP Y monocapa interna
+            ip    = int(lip.is_pip)
             ph    = 0 if lt.phase == "gel" else 1
             nc    = lt.nc[0]
             ndb   = lt.ndb[0] + lt.ndb[1]
             ed_h  = LIPID_ED_HEADGROUP.get(lname, 0.460)
             is_chol = (lname == "CHOL")
 
-            def add(pt, bt, si, ed_val, region_code, pip_head_val=0):
+            def add(pt, bt, si, ed_val, region_code,
+                    pip_head_val=0, is_tail_bead=False):
                 idx = len(xs)
                 xs.append(float(pt[0])); ys.append(float(pt[1])); zs.append(float(pt[2]))
                 lipid_id_arr.append(lid); leaflet_arr.append(chain_id)
@@ -112,29 +138,45 @@ def _build_atoms_and_bonds(membrane):
                 is_glycerol_arr.append(1 if region_code == 1 else 0)
                 is_tail_arr.append(1 if region_code in (2, 3, 4) else 0)
                 pip_head_arr.append(pip_head_val)
+
+                # ed_tail_norm: solo significativo en granos de cola;
+                # para cabeza/glicerol se pone 0 para no contaminar la escala.
+                etn = _ed_tail_norm(ed_val) if is_tail_bead else 0.0
+                ed_tail_norm_arr.append(etn)
+
+                # ed_raft_score: combina en un unico float tres indicadores
+                # de enriquecimiento en dominio Lo:
+                #   40% in_raft (binario)
+                #   30% phase gel (binario)
+                #   30% ed_tail_norm (continuo, solo colas)
+                tail_contrib = etn if is_tail_bead else 0.0
+                score = 0.40 * ir + 0.30 * (1 - ph) + 0.30 * tail_contrib
+                ed_raft_score_arr.append(float(np.clip(score, 0.0, 1.0)))
+
                 return idx
 
             # CABEZA POLAR
-            # pip_head=1 SOLO si es PIP en monocapa interna
             i_head = add(lip.head_pos, 0, 0, ed_h, 0,
-                         pip_head_val=ip)  # ip ya es 0 para externos
+                         pip_head_val=ip, is_tail_bead=False)
 
             # GLICEROL (no CHOL)
             if lt.glyc_offset > 0:
-                i_glyc = add(lip.glycerol_pos, 1, 0, 0.390, 1)
+                i_glyc = add(lip.glycerol_pos, 1, 0, 0.390, 1,
+                             is_tail_bead=False)
                 bonds.append((i_head, i_glyc))
                 prev = i_glyc
             else:
                 prev = i_head
 
-            # TAIL sn1 — region 4 para CHOL, 2 para el resto
+            # TAIL sn1, region 4 para CHOL, 2 para el resto
             if lip.tail1 and len(lip.tail1) > 0:
                 n_seg = len(lip.tail1)
                 i_prev = prev
                 reg = 4 if is_chol else 2
                 i_first_tail = None
                 for si, pt in enumerate(lip.tail1):
-                    i_t = add(pt, 2, si, _tail_ed(lname, si, n_seg, ndb), reg)
+                    ed_seg = _tail_ed(lname, si, n_seg, ndb)
+                    i_t = add(pt, 2, si, ed_seg, reg, is_tail_bead=True)
                     bonds.append((i_prev, i_t))
                     # CHOL: bonds cruzados para cuerpo anular
                     if is_chol and si >= 2 and si % 2 == 0 and i_first_tail is not None:
@@ -143,24 +185,25 @@ def _build_atoms_and_bonds(membrane):
                         i_first_tail = i_t
                     i_prev = i_t
 
-            # TAIL sn2 — region 3 (solo fosfolipidos, no CHOL)
+            # TAIL sn2 region 3 (solo fosfolipidos, no CHOL)
             if lip.tail2 and len(lip.tail2) > 0:
                 n_seg = len(lip.tail2)
-                i_prev = prev  # prev es i_glyc para fosfolipidos
+                i_prev = prev
                 for si, pt in enumerate(lip.tail2):
-                    i_t = add(pt, 3, si, _tail_ed(lname, si, n_seg, ndb), 3)
+                    ed_seg = _tail_ed(lname, si, n_seg, ndb)
+                    i_t = add(pt, 3, si, ed_seg, 3, is_tail_bead=True)
                     bonds.append((i_prev, i_t))
                     i_prev = i_t
 
-    # Proteinas transmembrana: cada perturbacion se representa como una
-    # columna de N_SLICES puntos que atraviesa la bicapa de z_inner a z_outer.
-    # region=5, is_protein=1 permiten filtrarlas en ParaView independientemente
-    # del resto de la molecula. electron_density=0.400 e/A3 es el valor
-    # tipico de una proteina integrada en membrana (entre colas y cabezas).
+    # --- PROTEINAS TRANSMEMBRANA ---
+    # Cada perturbacion se representa como una columna de N_SLICES puntos
+    # que atraviesa la bicapa de z_inner a z_outer.
+    # region=5, is_protein=1 permiten filtrarlas en ParaView.
+    # electron_density=0.400 e/Å³, valor tipico general
+    # integrado en membrana (entre colas y cabezas).
     is_protein_arr = [0] * len(xs)
     ED_PROTEIN = 0.400
     g = getattr(membrane, "geometry", None)
-    # CORRECCIÓN: usar total_thick/2 para cubrir las cabezas reales
     z_top    = float(g.total_thick / 2.0 + 5.0) if g else  60.0
     z_bottom = float(-g.total_thick / 2.0 - 5.0) if g else -60.0
     N_SLICES = 12
@@ -176,8 +219,10 @@ def _build_atoms_and_bonds(membrane):
             bead_type_arr.append(9); seg_idx_arr.append(si)
             order_p.append(0.0); in_raft_arr.append(0)
             is_pip_arr.append(0); pip_head_arr.append(0)
-            ed_arr.append(ED_PROTEIN); ndb_arr.append(0)
-            phase_arr.append(2); nc_arr.append(0)
+            ed_arr.append(ED_PROTEIN)
+            ed_tail_norm_arr.append(0.0)
+            ed_raft_score_arr.append(0.0)
+            ndb_arr.append(0); phase_arr.append(2); nc_arr.append(0)
             region_arr.append(5); is_head_arr.append(0)
             is_glycerol_arr.append(0); is_tail_arr.append(0)
             is_protein_arr.append(1)
@@ -188,23 +233,25 @@ def _build_atoms_and_bonds(membrane):
     atoms = {
         "x": np.array(xs, np.float32), "y": np.array(ys, np.float32),
         "z": np.array(zs, np.float32),
-        "lipid_id":         np.array(lipid_id_arr, np.int32),
-        "leaflet":          np.array(leaflet_arr,  np.int32),
-        "bead_type":        np.array(bead_type_arr,np.int32),
-        "seg_idx":          np.array(seg_idx_arr,  np.int32),
-        "order_param":      np.array(order_p,      np.float32),
-        "in_raft":          np.array(in_raft_arr,  np.int32),
-        "is_pip":           np.array(is_pip_arr,   np.int32),
-        "pip_head":         np.array(pip_head_arr, np.int32),
-        "electron_density": np.array(ed_arr,       np.float32),
-        "n_doublebonds":    np.array(ndb_arr,      np.int32),
-        "phase":            np.array(phase_arr,    np.int32),
-        "chain_length":     np.array(nc_arr,       np.int32),
-        "region":           np.array(region_arr,   np.int32),
-        "is_head":          np.array(is_head_arr,  np.int32),
-        "is_glycerol":      np.array(is_glycerol_arr, np.int32),
-        "is_tail":          np.array(is_tail_arr,  np.int32),
-        "is_protein":       np.array(is_protein_arr, np.int32),
+        "lipid_id":         np.array(lipid_id_arr,      np.int32),
+        "leaflet":          np.array(leaflet_arr,        np.int32),
+        "bead_type":        np.array(bead_type_arr,      np.int32),
+        "seg_idx":          np.array(seg_idx_arr,        np.int32),
+        "order_param":      np.array(order_p,            np.float32),
+        "in_raft":          np.array(in_raft_arr,        np.int32),
+        "is_pip":           np.array(is_pip_arr,         np.int32),
+        "pip_head":         np.array(pip_head_arr,       np.int32),
+        "electron_density": np.array(ed_arr,             np.float32),
+        "ed_tail_norm":     np.array(ed_tail_norm_arr,   np.float32),
+        "ed_raft_score":    np.array(ed_raft_score_arr,  np.float32),
+        "n_doublebonds":    np.array(ndb_arr,            np.int32),
+        "phase":            np.array(phase_arr,          np.int32),
+        "chain_length":     np.array(nc_arr,             np.int32),
+        "region":           np.array(region_arr,         np.int32),
+        "is_head":          np.array(is_head_arr,        np.int32),
+        "is_glycerol":      np.array(is_glycerol_arr,    np.int32),
+        "is_tail":          np.array(is_tail_arr,        np.int32),
+        "is_protein":       np.array(is_protein_arr,     np.int32),
     }
     return atoms, bonds
 
@@ -212,11 +259,11 @@ def _build_atoms_and_bonds(membrane):
 def _write_vtp(path, atoms, bonds, prop_keys=None):
     """Escribe un VTP con los arrays y bonds dados."""
     if prop_keys is None:
-        prop_keys = [k for k in atoms if k not in ("x","y","z")]
+        prop_keys = [k for k in atoms if k not in ("x", "y", "z")]
 
     n  = len(atoms["x"])
     nb = len(bonds)
-    FLOATS = {"order_param","electron_density"}
+    FLOATS = {"order_param", "electron_density", "ed_tail_norm", "ed_raft_score"}
 
     def farr(name, a):
         return '<DataArray type="Float32" Name="%s" format="ascii">\n%s\n</DataArray>\n' % (
@@ -226,10 +273,10 @@ def _write_vtp(path, atoms, bonds, prop_keys=None):
         return '<DataArray type="Int32" Name="%s" format="ascii">\n%s\n</DataArray>\n' % (
             name, " ".join(str(int(x)) for x in a))
 
-    pts  = " ".join("%.3f %.3f %.3f" % (float(x),float(y),float(z))
-                    for x,y,z in zip(atoms["x"],atoms["y"],atoms["z"]))
-    conn = " ".join("%d %d" % (int(a),int(b)) for a,b in bonds)
-    offs = " ".join(str(2*(i+1)) for i in range(nb))
+    pts  = " ".join("%.3f %.3f %.3f" % (float(x), float(y), float(z))
+                    for x, y, z in zip(atoms["x"], atoms["y"], atoms["z"]))
+    conn = " ".join("%d %d" % (int(a), int(b)) for a, b in bonds)
+    offs = " ".join(str(2 * (i + 1)) for i in range(nb))
 
     vtp = ('<?xml version="1.0"?>\n<VTKFile type="PolyData" version="0.1" '
            'byte_order="LittleEndian">\n<PolyData>\n'
@@ -261,10 +308,11 @@ def export_vtp(membrane, d=None):
 
     atoms, bonds = _build_atoms_and_bonds(membrane)
     prop_order = [
-        "region","is_head","is_glycerol","is_tail","is_protein",
-        "order_param","in_raft","is_pip","pip_head","electron_density",
-        "lipid_id","leaflet","bead_type","seg_idx",
-        "n_doublebonds","phase","chain_length",
+        "region", "is_head", "is_glycerol", "is_tail", "is_protein",
+        "order_param", "in_raft", "is_pip", "pip_head",
+        "electron_density", "ed_tail_norm", "ed_raft_score",
+        "lipid_id", "leaflet", "bead_type", "seg_idx",
+        "n_doublebonds", "phase", "chain_length",
     ]
     _write_vtp(path, atoms, bonds, prop_order)
     size_mb = os.path.getsize(path) / 1e6
@@ -277,24 +325,27 @@ def export_vtp_by_region(membrane, atoms, bonds, d=None):
     """
     VTPs separados por region anatomica.
 
-    Correcciones:
-    - _pips.vtp: solo las CABEZAS de PIPs (pip_head=1), no toda la molecula
-    - _chol.vtp: granos con region=4 (cuerpo del colesterol)
+      _pips.vtp:  solo CABEZAS de PIPs (pip_head=1)
+      _chol.vtp:  granos con region=4 (cuerpo del colesterol)
+      _rafts.vtp: todos los granos in_raft=1
     """
     if d is None:
         d = _sim_pv_dir(membrane.seed)
     sid = membrane.seed
 
-    PROPS = ["region","order_param","in_raft","is_pip","pip_head",
-             "electron_density","lipid_id","leaflet","phase","n_doublebonds"]
+    PROPS = [
+        "region", "order_param", "in_raft", "is_pip", "pip_head",
+        "electron_density", "ed_tail_norm", "ed_raft_score",
+        "lipid_id", "leaflet", "phase", "n_doublebonds",
+    ]
 
     def subvtp(tag, mask):
         idx_old = np.where(mask)[0]
         if len(idx_old) == 0:
             return None
         remap  = {int(o): int(ni) for ni, o in enumerate(idx_old)}
-        sub    = {k: v[mask] for k,v in atoms.items()}
-        sbonds = [(remap[a], remap[b]) for a,b in bonds
+        sub    = {k: v[mask] for k, v in atoms.items()}
+        sbonds = [(remap[a], remap[b]) for a, b in bonds
                   if a in remap and b in remap]
         p = os.path.join(d, "bicapa_sim%04d_%s.vtp" % (sid, tag))
         _write_vtp(p, sub, sbonds, PROPS)
@@ -315,7 +366,8 @@ def export_vtp_by_region(membrane, atoms, bonds, d=None):
     paths = {}
     for tag, mask in masks.items():
         r = subvtp(tag, mask)
-        if r: paths[tag] = r
+        if r:
+            paths[tag] = r
     return paths
 
 
@@ -337,19 +389,22 @@ def export_pdb_heads(membrane, d=None):
         % (membrane.Lx, membrane.Ly, 100.0),
     ]
     ai = ri = 1
-    for mono, chain in [(membrane.outer_leaflet,"A"),(membrane.inner_leaflet,"B")]:
+    for mono, chain in [(membrane.outer_leaflet, "A"), (membrane.inner_leaflet, "B")]:
         for lip in mono:
             rn  = RES.get(lip.lipid_type.name, lip.lipid_type.name[:3])
             occ = 1.00 if lip.in_raft else 0.50
-            bf  = round(float(lip.order_param)*100, 2)
-            x,y,z = lip.head_pos
-            lines.append("ATOM  %5d  HD  %3s %1s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s  "
-                % (ai%99999, rn, chain, ri%9999, x, y, z, occ, bf, "O"))
-            ai+=1; ri+=1
+            bf  = round(float(lip.order_param) * 100, 2)
+            x, y, z = lip.head_pos
+            lines.append(
+                "ATOM  %5d  HD  %3s %1s%4d    %8.3f%8.3f%8.3f%6.2f%6.2f          %2s  "
+                % (ai % 99999, rn, chain, ri % 9999, x, y, z, occ, bf, "O")
+            )
+            ai += 1; ri += 1
         lines.append("TER")
     lines.append("END")
-    with open(path,"w") as f: f.write("\n".join(lines)+"\n")
-    print("  -> %s  %d cabezas" % (os.path.basename(path), ai-1))
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print("  -> %s  %d cabezas" % (os.path.basename(path), ai - 1))
     return path
 
 
@@ -369,11 +424,19 @@ def export_all_paraview(membrane):
     }
 
     # Stats summary
-    n_chol_grains    = int((atoms["region"]==4).sum())
-    n_pip_heads      = int((atoms["pip_head"]==1).sum())
-    n_raft_grains    = int((atoms["in_raft"]==1).sum())
-    n_protein_grains = int((atoms["is_protein"]==1).sum())
+    n_chol_grains    = int((atoms["region"] == 4).sum())
+    n_pip_heads      = int((atoms["pip_head"] == 1).sum())
+    n_raft_grains    = int((atoms["in_raft"] == 1).sum())
+    n_protein_grains = int((atoms["is_protein"] == 1).sum())
     n_proteins       = len(getattr(membrane, "perturbations", []))
-    print("  CHOL: %d granos  |  PIP cabezas: %d  |  raft: %d granos  |  proteinas: %d (%d granos)" % (
-        n_chol_grains, n_pip_heads, n_raft_grains, n_proteins, n_protein_grains))
+    ed_chol_mean = float(atoms["electron_density"][atoms["region"] == 4].mean()) \
+        if n_chol_grains > 0 else 0.0
+    ed_raft_mean = float(atoms["ed_raft_score"][atoms["in_raft"] == 1].mean()) \
+        if n_raft_grains > 0 else 0.0
+    print(
+        "  CHOL: %d granos (ED media=%.3f)  |  PIP cabezas: %d  |"
+        "  raft: %d granos (score medio=%.2f)  |  proteinas: %d (%d granos)"
+        % (n_chol_grains, ed_chol_mean, n_pip_heads,
+           n_raft_grains, ed_raft_mean, n_proteins, n_protein_grains)
+    )
     return paths

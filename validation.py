@@ -16,12 +16,12 @@ Cada test devuelve un valor numérico y un criterio pass/cerca/fail respecto a
 rangos experimentales.
 
 Referencias principales:
-    [9]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET)
-    [11] Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas PC
-    [18] Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica en sistemas lipídicos
-    [21] Pinigin 2022 – parámetros elásticos de membranas desde simulación molecular
-    [23] Sharma et al. 2023 – estructura de membranas en cryo-EM
-    [20] Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
+    [08]  Sharma et al. 2023 – estructura de membranas en cryo-EM
+    [12]  Pinigin 2022 – parámetros elásticos de membranas desde simulación molecular
+    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica en sistemas lipídicos
+    [16]  Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
+    [25]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET)
 """
 
 from __future__ import annotations
@@ -45,22 +45,22 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-VAL_DIR         = os.path.join(OUTPUT_DIR, "validacion")
-VAL_PANELES     = os.path.join(VAL_DIR, "paneles")
-VAL_BENCHMARKS  = os.path.join(VAL_DIR, "benchmarks")
+VAL_DIR           = os.path.join(OUTPUT_DIR, "validacion")
+VAL_BENCHMARKS    = os.path.join(VAL_DIR, "benchmarks")
+VAL_PANELES       = os.path.join(VAL_DIR, "paneles")
 
 
 def _val_dir():
     os.makedirs(VAL_DIR, exist_ok=True)
     return VAL_DIR
 
-def _val_paneles_dir():
-    os.makedirs(VAL_PANELES, exist_ok=True)
-    return VAL_PANELES
-
 def _val_benchmarks_dir():
     os.makedirs(VAL_BENCHMARKS, exist_ok=True)
     return VAL_BENCHMARKS
+
+def _val_paneles_dir():
+    os.makedirs(VAL_PANELES, exist_ok=True)
+    return VAL_PANELES
 
 
 PLT_STYLE = {
@@ -71,9 +71,8 @@ PLT_STYLE = {
     "axes.titlesize": 11, "axes.titleweight": "bold",
 }
 
-# RANGOS AMPLIADOS para generador aleatorio (basado en código anterior que funcionaba)
 BENCHMARKS = {
-    "helfrich_slope": (-4.5, -2.0),      # Muy relajado para 50x50 nm
+    "helfrich_slope": (-4.5, -2.0),      # Relajado para 50x50 nm
     "helfrich_kc_kBT": (5.0, 100.0),     # Rango completo composiciones
     "thickness_lo_nm": (2.8, 4.2),
     "thickness_ld_nm": (2.6, 4.0),
@@ -96,6 +95,8 @@ def _accuracy_score(value: float, lo: float, hi: float) -> float:
     - Fuera del rango (1×w)   →  50 %  (zona CLOSE)
     - Fuera del rango (2×w)   →   0 %
     """
+    if np.isnan(value):
+        return 0.0
     if lo == hi:
         return 100.0 if value == lo else 0.0
     center = (lo + hi) / 2.0
@@ -243,8 +244,16 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
         r_sq_helf2 = float(1.0 - ss_r_h2 / ss_t_h2) if ss_t_h2 > 0 else 0.0
 
         kBT_eff = 1.380649e-23 * 310.0
+        # kc_r proviene del ajuste con q en nm⁻¹ y p_mean en Å²/modo.
+        # Convertir p_mean a nm²/modo implica dividir por 100 (1 nm² = 100 Å²).
+        # El ajuste ya trabajó en Å², así que kc_r tiene unidades nm⁻⁴ · Å²
+        # = nm⁻⁴ · 0.01 nm² = 0.01 nm⁻². Para obtener kc en J·nm²:
+        #   kBT / kc_r_adim, donde kc_r_adim = kc_r / factor_area
+        # Factor de escala: p_mean[Å²] = 100 * p_mean[nm²]
+        # → kc_r_efectivo = kc_r * 100 (absorbe la conversión)
+        kc_r_corrected = kc_r * 100.0   # lleva kc_r a unidades consistentes con nm
         kc_from_helf2 = float(
-            np.clip(kBT_eff * (L_nm ** 2) / (kc_r * (bins ** 2) + 1e-40), 1.0, 200.0)
+            np.clip(kBT_eff * (L_nm ** 2) / (kc_r_corrected * (bins ** 2) + 1e-40), 1.0, 200.0)
         )
         sigma_over_kappa = float(sig_r / kc_r) if kc_r > 0 else 0.0
 
@@ -258,10 +267,12 @@ def benchmark_helfrich(membrane: "BicapaCryoET") -> Dict:
 
     hq_arr = q_centers[q_centers > 0.30]
     q_ref = float(np.median(hq_arr)) if len(hq_arr) > 0 else float(np.median(q_centers))
-    S_ref = float(np.exp(intercept_global) * q_ref ** slope_high_q)
+    S_ref_A2 = float(np.exp(intercept_global) * q_ref ** slope_high_q)
+
+    S_ref_nm2 = S_ref_A2 * 0.01   # 1 Å² = 0.01 nm²
 
     corr = float(np.clip(abs(slope_high_q / 4.0), 0.1, 2.0))
-    kc_J_pl = kBT / (A_nm2 * q_ref ** 4 * S_ref + 1e-40) * corr
+    kc_J_pl = kBT / (A_nm2 * q_ref ** 4 * S_ref_nm2 + 1e-40) * corr
     kc_kBT_pl = float(np.clip(kc_J_pl / kBT, 1.0, 200.0))
 
     if kc_from_helf2 is not None and r_sq_helf2 > r_sq_powerlaw:
@@ -373,11 +384,10 @@ def benchmark_thickness(membrane: "BicapaCryoET") -> Dict:
         peak_vals = np.sort(t_range[peaks_idx])
         lo_peak_nm = float(peak_vals[-1])
         ld_peak_nm = float(peak_vals[0])
+        diff_A = abs((lo_peak_nm - ld_peak_nm) * 10.0)
     else:
         lo_peak_nm = lo_mean
         ld_peak_nm = ld_mean
-
-    diff_A = abs((lo_peak_nm - ld_peak_nm) * 10.0)
 
     diff_lo, diff_hi = BENCHMARKS["thickness_diff_A"]
     acc_diff = _accuracy_score(diff_A, diff_lo, diff_hi)
@@ -654,7 +664,7 @@ def plot_validation_panel(
             fontsize=13, fontweight="bold",
         )
 
-        # --- Panel 1: Espectro Helfrich ---
+        # Panel 1: Espectro Helfrich
         ax1 = fig.add_subplot(gs[0, 0])
         helf = results.get("helfrich", {})
 
@@ -691,7 +701,7 @@ def plot_validation_panel(
         )
         ax1.legend(fontsize=7.5)
 
-        # --- Panel 2: Grosor bimodal ---
+        # Panel 2: Grosor bimodal
         ax2 = fig.add_subplot(gs[0, 1])
         thick = results.get("thickness", {})
 
@@ -729,7 +739,7 @@ def plot_validation_panel(
         )
         ax2.legend(fontsize=7.5)
 
-        # --- Panel 3: Parámetro de orden ---
+        # Panel 3: Parámetro de orden
         ax3 = fig.add_subplot(gs[0, 2])
         order = results.get("order", {})
         s_gel = order.get("s_gel", [])
@@ -761,7 +771,7 @@ def plot_validation_panel(
         )
         ax3.legend(fontsize=7.5)
 
-        # --- Panel 4: Correlación de rafts ---
+        # Panel 4: Correlación de rafts
         ax4 = fig.add_subplot(gs[1, 0])
         raft = results.get("raft_corr", {})
 
@@ -789,7 +799,7 @@ def plot_validation_panel(
         )
         ax4.legend(fontsize=7.5)
 
-        # --- Panel 5: Interdigitación ---
+        # Panel 5: Interdigitación
         ax5 = fig.add_subplot(gs[1, 1])
         idig = results.get("interdig", {})
         cats = ["Lo (raft)", "Ld (fluido)"]
@@ -811,7 +821,7 @@ def plot_validation_panel(
         )
         ax5.set_ylim(0, max(vals_idig) * 1.3 + 0.01)
 
-        # --- Panel 6: Densidad electrónica ---
+        # Panel 6: Densidad electrónica
         ax6 = fig.add_subplot(gs[1, 2])
         ed_res = results.get("electron_ed", {})
 

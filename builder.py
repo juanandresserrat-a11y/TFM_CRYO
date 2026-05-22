@@ -3,22 +3,23 @@ builder.py
 Construcción y organización de la bicapa.
 
 Referencias principales:
-    [1]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
-    [3]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
-    [4]  Helfrich 1973 – elasticidad de membranas y curvatura
-    [5]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
-    [6]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
-    [11] Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas
-    [12] Simons & Ikonen 1997 – organización en lipid rafts
-    [13] Lingwood & Simons 2010 – rafts como principio organizador de membrana
-    [14] Liu et al. 2021 – simulaciones de membranas a doble resolución
-    [25] Singer & Nicolson 1972 – modelo de mosaico fluido de la estructura de membranas celulares
-    [26] Smith et al. 2018 – simulación de membranas lipídicas por dinámica molecular
+    [01]  Singer & Nicolson 1972 – modelo de mosaico fluido de la estructura de membranas celulares
+    [02]  Simons & Ikonen 1997 – organización en lipid rafts
+    [03]  Lingwood & Simons 2010 – rafts como principio organizador de membrana
+    [11]  Helfrich 1973 – elasticidad de membranas y curvatura
+    [12]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
+    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [17]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
+    [23]  Smith et al. 2018 – simulación de membranas lipídicas por dinámica molecular
+    [24]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
+    [27]  Liu et al. 2021 – simulaciones de membranas a doble resolución
 """
 
 from __future__ import annotations
 
 import os
+from collections import deque
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -125,10 +126,11 @@ class BicapaCryoET:
             z_mid=0.0,                   # Interfaz hidrofóbica en z=0
         )
 
-    def get_local_z(self, x: float, y: float, bins: int = 64) -> float:
+    def get_local_z(self, x: float, y: float) -> float:
         """Interpola la curvatura Helfrich en la posición (x, y)."""
         if self.curvature_map is None:
             return 0.0
+        bins = self.curvature_map.shape[0]
         ix = int(x / self.Lx * bins) % bins
         iy = int(y / self.Ly * bins) % bins
         return float(self.curvature_map[ix, iy])
@@ -187,25 +189,25 @@ class BicapaCryoET:
         if ltype_data and ltype_data.tail_length > 0:
             seg_step = (ltype_data.tail_length / 9) * 1.30
         else:
-            seg_step = 2.0  # fallback conservador
+            seg_step = 2.0
 
         sanitized = []
         z_glyc = glycerol_pos[2]
         z_prev = z_glyc
-        glyc_zone = 2.0  # margen mínimo desde el glicerol (Å)
+        glyc_zone = 2.0
 
         for i, seg in enumerate(tail):
             seg = np.array(seg, dtype=float)
             z = seg[2]
 
-            if sign < 0:  # Monocapa externa: Z decrece hacia el interior
+            if sign < 0:
                 if z > z_prev + 0.8:
                     z = z_prev - 0.5
-                # Límite máximo proporcional a la longitud de cadena de la especie
+                    
                 z_limit = z_glyc - glyc_zone - i * seg_step
                 if z > z_limit:
                     z = z_limit
-            else:          # Monocapa interna: Z crece hacia el interior
+            else:
                 if z < z_prev - 0.8:
                     z = z_prev + 0.5
                 z_limit = z_glyc + glyc_zone + i * seg_step
@@ -229,22 +231,26 @@ class BicapaCryoET:
         ltype = LIPID_TYPES[lipid_name]
         sign = -1 if leaflet == "sup" else 1
 
-        # z_base es la posición Z del GLICEROL (donde se unen las colas acil)
-        z_glyc = z_base + self.get_local_z(x, y) + self.rng.normal(0, 0.5)
+        # z_base es la posición Z del GLICEROL (donde se unen las colas acil).
+        # Se añade la ondulación Helfrich local más jitter térmico sub-Å.
+        z_glyc_base = z_base + self.get_local_z(x, y) + self.rng.normal(0, 0.5)
 
         tilt = self.rng.uniform(3, 12 if ltype.phase == "gel" else 27) * np.pi / 180
         phi = self.rng.uniform(0, 2.0 * np.pi)
 
-        # Desplazamiento XY del glicerol respecto a la proyección de la cabeza
-        # debido al tilt molecular
+        # La cabeza polar se sitúa en (x, y) exactos (proyección sobre el plano XY).
+        # El glicerol se desplaza desde la cabeza hacia el interior de la bicapa:
+        #   - en XY: desplazamiento de tilt (el lípido está inclinado)
+        #   - en Z:  glyc_offset hacia el interior (sign)
+        head_z = z_glyc_base - sign * ltype.glyc_offset
+        head_pos = np.array([x, y, head_z])
+
         glyc_xy = np.sin(tilt) * ltype.glyc_offset * 0.3
         glycerol_pos = np.array([
-            x + glyc_xy * np.cos(phi),
-            y + glyc_xy * np.sin(phi),
-            z_glyc,
+            x - glyc_xy * np.cos(phi),   # glicerol ligeramente desplazado respecto a cabeza
+            y - glyc_xy * np.sin(phi),
+            z_glyc_base,
         ])
-        head_z = z_glyc - sign * ltype.glyc_offset
-        head_pos = np.array([x, y, head_z])
 
         dphi = np.pi / 5.0
 
@@ -350,6 +356,7 @@ class BicapaCryoET:
         )
         pip_centers: List[Tuple[float, float]] = []
         pip_radius = 0.0
+        pip_positions: List[Tuple[float, float]] = []   # pool propio para PIPs
         if fr_pip > 0.01 and leaflet == "inf":
             n_pip = max(3, round(fr_pip * 8))
             pip_centers = [
@@ -360,26 +367,44 @@ class BicapaCryoET:
             pip_radius = np.sqrt(
                 self.Lx * self.Ly * fr_pip / (np.pi * n_pip)
             )
+            # Pre-generar las posiciones PIP dentro de los clusters
+            # para no consumir ranuras del pool principal
+            n_pip_total = sum(
+                counts.get(lt, 0)
+                for lt in counts
+                if LIPID_TYPES.get(lt, _null_lt()).pip_order > 0
+            )
+            for _ in range(n_pip_total):
+                cx, cy = pip_centers[self.rng.integers(len(pip_centers))]
+                r = self.rng.uniform(0, pip_radius)
+                theta = self.rng.uniform(0, 2.0 * np.pi)
+                pip_positions.append((
+                    (cx + r * np.cos(theta)) % self.Lx,
+                    (cy + r * np.sin(theta)) % self.Ly,
+                ))
+            self.rng.shuffle(pip_positions)
 
+        pip_pos_idx = 0
         lipids: List[LipidInstance] = []
         pos_idx = 0
         for ltype, count in counts.items():
+            is_pip_species = LIPID_TYPES.get(ltype, _null_lt()).pip_order > 0
             for _ in range(count):
-                if pos_idx >= len(positions):
-                    break
-                x, y = positions[pos_idx]
-                pos_idx += 1
-
-                if (LIPID_TYPES[ltype].pip_order > 0 and pip_centers
-                        and not any(
-                            np.hypot(x - cx, y - cy) < pip_radius
-                            for cx, cy in pip_centers
-                        )):
-                    cx, cy = pip_centers[self.rng.integers(len(pip_centers))]
-                    r = self.rng.uniform(0, pip_radius)
-                    theta = self.rng.uniform(0, 2.0 * np.pi)
-                    x = (cx + r * np.cos(theta)) % self.Lx
-                    y = (cy + r * np.sin(theta)) % self.Ly
+                if is_pip_species and pip_positions:
+                    # Usar el pool propio de PIPs para no perder posiciones del pool general
+                    if pip_pos_idx < len(pip_positions):
+                        x, y = pip_positions[pip_pos_idx]
+                        pip_pos_idx += 1
+                    else:
+                        if pos_idx >= len(positions):
+                            break
+                        x, y = positions[pos_idx]
+                        pos_idx += 1
+                else:
+                    if pos_idx >= len(positions):
+                        break
+                    x, y = positions[pos_idx]
+                    pos_idx += 1
 
                 lipid = self._create_lipid(ltype, x, y, z_base, leaflet)
                 lipid.in_raft = (
@@ -416,8 +441,26 @@ class BicapaCryoET:
                     dist = np.hypot(dx, dy)
                     if 0 < dist < radius * 1.5:
                         force = (radius * 1.5 - dist) / (radius * 1.5) * 6.0
-                        lip.head_pos[0] = (lip.head_pos[0] + (dx / dist) * force) % self.Lx
-                        lip.head_pos[1] = (lip.head_pos[1] + (dy / dist) * force) % self.Ly
+                        shift_x = (dx / dist) * force
+                        shift_y = (dy / dist) * force
+
+                        # Desplazar cabeza
+                        lip.head_pos[0] = (lip.head_pos[0] + shift_x) % self.Lx
+                        lip.head_pos[1] = (lip.head_pos[1] + shift_y) % self.Ly
+
+                        # Propagar el mismo desplazamiento XY al glicerol
+                        lip.glycerol_pos[0] = (lip.glycerol_pos[0] + shift_x) % self.Lx
+                        lip.glycerol_pos[1] = (lip.glycerol_pos[1] + shift_y) % self.Ly
+
+                        # Propagar a todos los segmentos de las colas (Z no cambia)
+                        if lip.tail1:
+                            for pt in lip.tail1:
+                                pt[0] = (pt[0] + shift_x) % self.Lx
+                                pt[1] = (pt[1] + shift_y) % self.Ly
+                        if lip.tail2:
+                            for pt in lip.tail2:
+                                pt[0] = (pt[0] + shift_x) % self.Lx
+                                pt[1] = (pt[1] + shift_y) % self.Ly
 
     # Clusters
 
@@ -435,10 +478,10 @@ class BicapaCryoET:
             for i in range(len(subset)):
                 if i in visited:
                     continue
-                queue, cl = [i], {i}
+                queue, cl = deque([i]), {i}
                 visited.add(i)
                 while queue:
-                    cur = queue.pop(0)
+                    cur = queue.popleft()
                     for nb in tree.query_ball_point(coords[cur], r=r_link):
                         if nb not in visited:
                             visited.add(nb)
@@ -530,7 +573,8 @@ class BicapaCryoET:
             self.comp_outer, self.comp_inner
         )
         self.curvature_map = generate_helfrich_map(
-            self.Lx, self.bending_modulus, self.surface_tension, self.rng
+            self.Lx, self.bending_modulus, self.surface_tension, self.rng,
+            Ly_angstrom=self.Ly,
         )
         self.outer_leaflet = self._populate_leaflet(
             self.comp_outer, self.geometry.z_outer, "sup"

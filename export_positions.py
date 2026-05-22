@@ -2,19 +2,19 @@
 export_positions.py
 Exportacion de posiciones 3D de todos los granos CG de la bicapa.
 
-Genera tres formatos de salida:
+Genera tres formatos de salida en subcarpetas separadas:
 
-  1. PDB
+  1. PDB  →  posiciones/pdb/
      Cada grano coarse-grained (cabeza, glicerol, colas) se guarda
      como un ATOM con coordenadas X,Y,Z en Å.
      Compatible con PyMOL, ChimeraX y VMD.
 
-  2. CSV
+  2. CSV  →  posiciones/csv/
      Tabla por grano con:
        lipid_id, lipid_type, leaflet, bead_type, bead_idx,
        x, y, z, order_param, in_raft, is_pip
 
-  3. PolNet particle list
+  3. PolNet particle list  →  posiciones/polnet/
      Formato de puntos con orientación:
        type, label, x, y, z, q1, q2, q3, q4
      Permite insertar proteínas alineadas con la membrana.
@@ -36,8 +36,8 @@ Geometría del sistema:
   - Curvaturas fuertes (orgánulos) no están modeladas
 
 Referencia principal:
-    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [26] Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas por dinámica molecular
+    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [23]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas por dinámica molecular
 """
 
 from __future__ import annotations
@@ -65,15 +65,15 @@ def _pos_dir():
     os.makedirs(POS_DIR, exist_ok=True)
     return POS_DIR
 
-def _pos_pdb_dir():
+def _pdb_dir():
     os.makedirs(POS_PDB, exist_ok=True)
     return POS_PDB
 
-def _pos_csv_dir():
+def _csv_dir():
     os.makedirs(POS_CSV, exist_ok=True)
     return POS_CSV
 
-def _pos_polnet_dir():
+def _polnet_dir():
     os.makedirs(POS_POLNET, exist_ok=True)
     return POS_POLNET
 
@@ -130,7 +130,7 @@ def export_pdb(
         para que la membrana pueda visualizarse sin discontinuidades en bordes
     """
     if path is None:
-        path = os.path.join(_pos_pdb_dir(), "bicapa_simulacion%04d.pdb" % membrane.seed)
+        path = os.path.join(_pdb_dir(), "bicapa_simulacion%04d.pdb" % membrane.seed)
 
     lines = []
     lines.append(
@@ -215,7 +215,8 @@ def export_pdb(
         f.write("\n".join(lines) + "\n")
 
     n_atoms = atom_idx - 1
-    print("  -> %s  %d atomos  %d residuos" % (os.path.basename(path), n_atoms, res_idx - 1))
+    print("  -> posiciones/pdb/%s  %d atomos  %d residuos" % (
+        os.path.basename(path), n_atoms, res_idx - 1))
     return path
 
 
@@ -246,7 +247,7 @@ def export_csv_positions(
     """
     if path is None:
         path = os.path.join(
-            _pos_csv_dir(), "posiciones_simulacion%04d.csv" % membrane.seed
+            _csv_dir(), "posiciones_simulacion%04d.csv" % membrane.seed
         )
 
     fieldnames = [
@@ -299,7 +300,7 @@ def export_csv_positions(
                     for si, pt in enumerate(lip.tail2):
                         writer.writerow(row("TAIL2_%d" % si, pt))
 
-    print("  -> %s  %d lipidos" % (os.path.basename(path), len(todos)))
+    print("  -> posiciones/csv/%s  %d lipidos" % (os.path.basename(path), len(todos)))
     return path
 
 
@@ -330,7 +331,7 @@ def export_polnet_particle_list(
     """
     if path is None:
         path = os.path.join(
-            _pos_polnet_dir(), "polnet_particulas_simulacion%04d.csv" % membrane.seed
+            _polnet_dir(), "polnet_particulas_simulacion%04d.csv" % membrane.seed
         )
 
     def vec_to_quaternion(v: np.ndarray) -> Tuple[float, float, float, float]:
@@ -392,7 +393,7 @@ def export_polnet_particle_list(
         writer.writeheader()
         writer.writerows(rows)
 
-    print("  -> %s  %d particulas" % (os.path.basename(path), len(rows)))
+    print("  -> posiciones/polnet/%s  %d particulas" % (os.path.basename(path), len(rows)))
     return path
 
 

@@ -18,11 +18,11 @@ Genera dos tipos de salidas:
      - Distribucion de scores de validacion
 
 Referencias principales:
-    [3]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
-    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [17] Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
-    [19] Peck et al. 2025 – benchmark con ground-truth para promediado de subtomogramas en cryo-ET
-    [22] Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular (TomoSegNet)
+    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [22]  Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
+    [20]  Peck et al. 2025 – benchmark con ground-truth para promediado de subtomogramas en cryo-ET
+    [21]  Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular (TomoSegNet)
 """
 
 from __future__ import annotations
@@ -403,12 +403,14 @@ def plot_mrc_comparison(
             mid_y = len(cy) // 2
             mid_x = len(cx) // 2
             g = membrane.geometry
+            z_head_ext_nm =  g.total_thick / 20.0   # nm (cabezas externas)
+            z_head_int_nm = -g.total_thick / 20.0   # nm (cabezas internas)
 
             axes[row, 0].imshow(
                 H[:, mid_y, :].T, origin="lower", cmap="gray_r", aspect="auto",
                 extent=[cx[0], cx[-1], cz[0], cz[-1]]
             )
-            for zl, col in [(g.z_outer/10, "#2dc653"), (g.z_inner/10, "#e63946")]:
+            for zl, col in [(z_head_ext_nm, "#2dc653"), (z_head_int_nm, "#e63946")]:
                 axes[row, 0].axhline(zl, color=col, lw=0.9, ls="--", alpha=0.7)
             axes[row, 0].set_title("%s — Slice XZ" % title_prefix, fontsize=9, fontweight="bold")
             axes[row, 0].set_xlabel("X (nm)", fontsize=8)
@@ -418,7 +420,7 @@ def plot_mrc_comparison(
                 H[mid_x, :, :].T, origin="lower", cmap="gray_r", aspect="auto",
                 extent=[cy[0], cy[-1], cz[0], cz[-1]]
             )
-            for zl, col in [(g.z_outer/10, "#2dc653"), (g.z_inner/10, "#e63946")]:
+            for zl, col in [(z_head_ext_nm, "#2dc653"), (z_head_int_nm, "#e63946")]:
                 axes[row, 1].axhline(zl, color=col, lw=0.9, ls="--", alpha=0.7)
             axes[row, 1].set_title("%s — Slice YZ" % title_prefix, fontsize=9, fontweight="bold")
             axes[row, 1].set_xlabel("Y (nm)", fontsize=8)

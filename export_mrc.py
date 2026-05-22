@@ -17,10 +17,16 @@ Etiquetas:
   1 monocapa externa
   2 nucleo hidrofobico
   3 monocapa interna
+
+Estructura de subcarpetas:
+  mrc/densidad/    volumenes de densidad de masa normalizados
+  mrc/etiquetas/   volumenes de etiquetas semanticas (simples y con cierre)
+  mrc/gaussiana/   perfiles de doble gaussiana para PolNet
+  mrc/config/      plantillas YAML de configuracion PolNet
   
 Referencia principal:
-    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [18] Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y perfiles de densidad electrónica
+    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y perfiles de densidad electrónica
+    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET   
 """
 
 from __future__ import annotations
@@ -38,11 +44,11 @@ if TYPE_CHECKING:
     from builder import BicapaCryoET
 
 
-MRC_DIR         = os.path.join(OUTPUT_DIR, "mrc")
-MRC_DENSIDAD    = os.path.join(MRC_DIR, "densidad")
-MRC_ETIQUETAS   = os.path.join(MRC_DIR, "etiquetas")
-MRC_GAUSSIANA   = os.path.join(MRC_DIR, "gaussiana")
-MRC_CONFIG      = os.path.join(MRC_DIR, "config")
+MRC_DIR      = os.path.join(OUTPUT_DIR, "mrc")
+MRC_DENSIDAD = os.path.join(MRC_DIR, "densidad")
+MRC_ETIQUETAS = os.path.join(MRC_DIR, "etiquetas")
+MRC_GAUSSIANA = os.path.join(MRC_DIR, "gaussiana")
+MRC_CONFIG   = os.path.join(MRC_DIR, "config")
 
 
 def _mrc_dir():
@@ -158,7 +164,7 @@ def export_label_mrc(
         mrc.set_data(labels.T.astype(np.float32))
         mrc.voxel_size = voxel_angstrom
 
-    print("  -> mrc/etiquetas/%s  fondo · ext · hidrofobico · int" % fname)
+    print("  -> mrc/etiquetas/%s  etiquetas: fondo · ext · hidrofobico · int" % fname)
     return path
 
 
@@ -188,8 +194,10 @@ def generate_polnet_yaml(
     El YAML referencia directamente los archivos MRC exportados.
     """
     density_path = os.path.abspath(os.path.join(
-        MRC_DENSIDAD, "bicapa_simulacion%04d.mrc" % membrane.seed
+        _mrc_densidad_dir(), "bicapa_simulacion%04d.mrc" % membrane.seed
     ))
+
+    yaml_name = "config_simulacion%04d.yaml" % membrane.seed
 
     yaml_content = (
         "metadata:\n"
@@ -237,10 +245,9 @@ def generate_polnet_yaml(
         "tmin":     tilt_range[0],
         "tmax":     tilt_range[1],
         "tstep":    tilt_range[2],
-        "yaml_name": "config_simulacion%04d.yaml" % membrane.seed,
+        "yaml_name": yaml_name,
     }
 
-    yaml_name = "config_simulacion%04d.yaml" % membrane.seed
     yaml_path = os.path.join(_mrc_config_dir(), yaml_name)
     with open(yaml_path, "w") as f:
         f.write(yaml_content)
@@ -321,7 +328,9 @@ def export_label_mrc_with_closing(
     bins_xy: int = 55,
     bins_z: int = 40,
 ) -> str:
-    """Exporta etiquetas semanticas con cierre morfologico 3D."""
+    """
+    Exporta etiquetas semanticas con cierre morfologico 3D.
+    """
     from scipy.ndimage import binary_closing
 
     _, edges = analysis.volumetric_density(membrane, bins_xy=bins_xy, bins_z=bins_z)

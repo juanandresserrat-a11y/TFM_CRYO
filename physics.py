@@ -7,12 +7,12 @@ No dependen de la clase BicapaCryoET, por lo que pueden probarse
 de forma independiente.
 
 Referencias principales:
-    [1]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
-    [3]  Chakraborty et al. 2020 – dependencia del módulo de bending (kc) con la composición lipídica de la membrana
-    [10] Helfrich 1973 – energía elástica de membranas y descripción de la curvatura en bicapas
-    [20] Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
-    [21] Pinigin 2022 – espectro de fluctuaciones de membrana y parámetros elásticos efectivos
-    [26] Smith et al. 2019 – modelado de kinks en cadenas acil y geometría de dobles enlaces en lípidos
+    [11]  Helfrich 1973 – energía elástica de membranas y descripción de la curvatura en bicapas
+    [12]  Pinigin 2022 – espectro de fluctuaciones de membrana y parámetros elásticos efectivos
+    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending (kc) con la composición lipídica de la membrana
+    [16]  Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
+    [17]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
+    [23]  Smith et al. 2019 – modelado de kinks en cadenas acil y geometría de dobles enlaces en lípidos
 """
 
 from __future__ import annotations
@@ -63,22 +63,27 @@ def generate_helfrich_map(
     sigma: float,
     rng: Generator,
     bins: int = 64,
+    Ly_angstrom: Optional[float] = None,
 ) -> np.ndarray:
     """
     Campo de alturas h(x,y) con espectro de Helfrich.
 
     kc controla bending, σ la tensión superficial.
+    Ly_angstrom permite parches no cuadrados; si se omite se asume Ly = Lx.
     """
-    L_nm = Lx_angstrom / 10.0
-    qx = 2.0 * np.pi * np.fft.fftfreq(bins, d=L_nm / bins)
-    Qx, Qy = np.meshgrid(qx, qx)
+    Lx_nm = Lx_angstrom / 10.0
+    Ly_nm = (Ly_angstrom / 10.0) if Ly_angstrom is not None else Lx_nm
+
+    qx = 2.0 * np.pi * np.fft.fftfreq(bins, d=Lx_nm / bins)
+    qy = 2.0 * np.pi * np.fft.fftfreq(bins, d=Ly_nm / bins)
+    Qx, Qy = np.meshgrid(qx, qy)
     Q2 = Qx**2 + Qy**2
     Q4 = Q2**2
 
     denom = kc * Q4 + sigma * Q2
     denom[0, 0] = 1.0
 
-    sigma_q = np.sqrt(1.0 / denom) * (L_nm / bins)
+    sigma_q = np.sqrt(1.0 / denom) * np.sqrt(Lx_nm * Ly_nm) / bins
     sigma_q[0, 0] = 0.0
 
     noise = (

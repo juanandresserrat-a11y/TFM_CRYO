@@ -6,11 +6,11 @@ Este módulo es de solo lectura: no depende de ningún otro módulo
 del paquete. Todos los demás módulos lo importan.
 
 Referencias principales:
-    [2]  Braverman & Moser 2012 – funciones biológicas de plasmalógenos en membranas celulares
-    [3] Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel en señalización y dinámica de membrana
-    [11] Kučerka et al. 2011 – determinación de áreas moleculares y espesores en bicapas lipídicas mediante dispersión de neutrones
-    [21] Daleke 2003 – mantenimiento de la asimetría lipídica en membranas biológicas y mecanismos de regulación transmembrana
-    [24] Simons & Ikonen 1997 – organización funcional en lipid rafts y principio organizador de membrana
+    [02]  Simons & Ikonen 1997 – organización funcional en lipid rafts y principio organizador de membrana
+    [04]  Daleke 2003 – mantenimiento de la asimetría lipídica en membranas biológicas y mecanismos de regulación transmembrana
+    [10]  Braverman & Moser 2012 – funciones biológicas de plasmalógenos en membranas celulares
+    [14]  Kučerka et al. 2011 – determinación de áreas moleculares y espesores en bicapas lipídicas mediante dispersión de neutrones
+    [24]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel en señalización y dinámica de membrana  
 """
 
 from dataclasses import dataclass

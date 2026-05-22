@@ -3,7 +3,7 @@ figures.py
 Estándares tipográficos Nature / Biophysical Journal.
 
 Referencias principales:
-    [24] Simons & Ikonen 1997 – organización funcional en lipid rafts de membranas celulares
+    [02]  Simons & Ikonen 1997 – organización funcional en lipid rafts de membranas celulares
 """
 
 from __future__ import annotations
@@ -117,8 +117,10 @@ def _sim_fig_dir(seed):
 def _ed_profile(membrane, vol):
     """Perfil 1D de ED promediado en XY. Devuelve (z_nm, ed) mismo len."""
     nz = vol.shape[2]
-    voxel_z_A = getattr(membrane, "Lz", nz * 9.0) / nz
-    z_half_nm = nz * voxel_z_A / 10.0 / 2.0
+    # FIX bug 5: membrane.Lz no existe; el fallback nz*9.0 daba z_half=36nm
+    # (80*9/10/2) en lugar de los ~3.3nm reales de la bicapa.
+    # Se calcula igual que en model_3d.build_physical_volume: (total_thick/10)/2 + 0.8
+    z_half_nm = (membrane.geometry.total_thick / 10.0) / 2.0 + 0.8
     z_nm = np.linspace(-z_half_nm, z_half_nm, nz)
     ed   = vol.mean(axis=(0, 1))
     n    = min(len(z_nm), len(ed))
@@ -157,7 +159,10 @@ def _thickness_dist(membrane):
     from analysis import thickness_map
     tm   = thickness_map(membrane, bins=55)
     vals = tm.flatten()
-    return vals[vals > 1.0] * 10.0
+    # FIX bug 6: thickness_map devuelve valores en Å (acumula head_pos[2] que
+    # esta en Å). La multiplicacion * 10.0 daba ~400 cuando el rango correcto
+    # es 35–50 Å. La etiqueta del eje ya dice "(Å)": no hay conversion necesaria.
+    return vals[vals > 1.0]
 
 
 def _raft_map_smooth(membrane, bins=160, sigma=2.2):
@@ -759,9 +764,9 @@ def plot_fig8_parametros(membrane, stats, dpi=300):
     fluid_s  = [l.order_param for l in all_lips if l.lipid_type.phase == "fluid"]
     n_pips   = sum(1 for l in membrane.inner_leaflet if l.is_pip)
 
-    # Posiciones de cabezas (no glicerol)
-    z_head_ext_nm = g.total_thick / 20.0
-    z_head_int_nm = -g.total_thick / 20.0
+    # Posiciones reales de cabezas (no glicerol)
+    z_head_ext_nm = np.mean([l.head_pos[2] for l in membrane.outer_leaflet]) / 10.0
+    z_head_int_nm = np.mean([l.head_pos[2] for l in membrane.inner_leaflet]) / 10.0
 
     ROWS = [
         ("MECÁNICA",      "Módulo de flexión $k_c$",

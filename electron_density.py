@@ -20,9 +20,9 @@ Valores de referencia (e/Å³):
   Nucleo CH2: 0.29
 
 Referencias principales:
-    [7]  Dubochet et al. 1988 – microscopía crioelectrónica de especímenes vitrificados, fundamento de cryo-ET
-    [11] Kučerka et al. 2008 – determinación experimental de espesores y áreas de densidad electrónica en bicapas lipídicas
-    [18] Nagle & Tristram-Nagle 2000 – modelo estructural de bicapas y perfiles de densidad electrónica en sistemas lipídicos
+    [05]  Dubochet et al. 1988 – microscopía crioelectrónica de especímenes vitrificados, fundamento de cryo-ET
+    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [15]  Nagle & Tristram-Nagle 2000 – modelo estructural de bicapas y perfiles de densidad electrónica en sistemas lipídicos
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ LIPID_ED_HEADGROUP: Dict[str, float] = {
     "SM":     0.462,
     "CHOL":   0.385,
     "GM1":    0.472,
-    "PlsPE":  0.448,   # sin carbonilo ester en sn1 → menor que POPE (0.452)
+    "PlsPE":  0.448,   # sin carbonilo ester en sn1 > menor que POPE (0.452)
 }
 
 LIPID_ED_TAIL: Dict[str, float] = {
@@ -78,6 +78,14 @@ LIPID_ED_TAIL: Dict[str, float] = {
     "GM1":    0.289,
     "PlsPE":  0.291,   # sn2 identico a POPE, sn1 vinilo-eter similar
 }
+
+# Rango real de ED en colas: usado para normalizar a [0,1] en visualizacion.
+ED_TAIL_MIN = 0.280
+ED_TAIL_MAX = 0.312
+
+# Evita que lipidos con hg_thick pequeño (CHOL=4 A) aporten a un unico
+# voxel y queden invisibles a resolucion tipica de 10 A/voxel.
+_HG_HALF_MIN_NM = 0.35
 
 
 def electron_density_profile(
@@ -106,8 +114,6 @@ def electron_density_profile(
 
     ed = np.full(bins_z, ELECTRON_DENSITY["water"])
 
-    g = membrane.geometry
-
     for l in todos:
         lname = l.lipid_type.name
         ed_head = LIPID_ED_HEADGROUP.get(lname, 0.460)
@@ -119,18 +125,19 @@ def electron_density_profile(
         hg_thick = l.lipid_type.hg_thick
         glyc_thick = l.lipid_type.glyc_offset
 
-        sign = -1 if l.leaflet == "sup" else 1
-
+        # cabeza polar
         iz_head = np.clip(
             np.searchsorted(z_edges, z_h) - 1, 0, bins_z - 1
         )
-        hg_safe = max(hg_thick, 1.0)
+
+        hg_safe = max(hg_thick, 3.5)
         i_range_head = max(1, int(hg_safe / dz))
         for diz in range(-i_range_head, i_range_head + 1):
             iz = np.clip(iz_head + diz, 0, bins_z - 1)
             w = np.exp(-0.5 * (diz * dz / (hg_safe * 0.4)) ** 2)
             ed[iz] = ed[iz] * (1 - w) + ed_head * w
 
+        # glicerol
         iz_glyc = np.clip(
             np.searchsorted(z_edges, z_g) - 1, 0, bins_z - 1
         )
@@ -141,15 +148,20 @@ def electron_density_profile(
             w = 0.5 * np.exp(-0.5 * (diz * dz / (glyc_safe * 0.5)) ** 2)
             ed[iz] = ed[iz] * (1 - w) + ed_glyc * w
 
+        # colas acil
         if l.tail1 and len(l.tail1) > 2:
             z_tail_start = z_g
             z_tail_end = l.tail1[-1][2]
             iz_s = np.clip(int((z_tail_start - z_min) / dz), 0, bins_z - 1)
             iz_e = np.clip(int((z_tail_end - z_min) / dz), 0, bins_z - 1)
             iz_lo, iz_hi = min(iz_s, iz_e), max(iz_s, iz_e)
+            
+            # CHOL (0.302) contribuye mas que SM (0.287) o POPC (0.294).
+            # Rango [ED_TAIL_MIN, ED_TAIL_MAX] → peso [0.28, 0.48]
+            w_tail = 0.28 + 0.20 * (ed_tail - ED_TAIL_MIN) / (ED_TAIL_MAX - ED_TAIL_MIN)
+            w_tail = float(np.clip(w_tail, 0.25, 0.50))
             for iz in range(iz_lo, iz_hi + 1):
-                w = 0.3
-                ed[iz] = ed[iz] * (1 - w) + ed_tail * w
+                ed[iz] = ed[iz] * (1 - w_tail) + ed_tail * w_tail
 
     ed_smooth = gaussian_filter(ed, sigma=sigma / dz)
     return z_centers, ed_smooth
@@ -170,7 +182,7 @@ def electron_density_volume(
       - Colas acil: baja densidad electronica
       - Agua: fondo basal
 
-    El resultado es compatible con volumetric_density() de analysis.py
+    Resultado es compatible con volumetric_density() de analysis.py
     y puede usarse en export_mrc.py para mayor realismo fisico.
     """
     g = membrane.geometry
@@ -204,21 +216,27 @@ def electron_density_volume(
 
         z_h_rel = (l.head_pos[2] - z_ref) / 10.0
         z_g_rel = (l.glycerol_pos[2] - z_ref) / 10.0
-        hg_half = l.lipid_type.hg_thick / 10.0 / 2.0
+
+        hg_half_raw = l.lipid_type.hg_thick / 10.0 / 2.0
+        hg_half_eff = max(hg_half_raw, _HG_HALF_MIN_NM)
+
+        w_tail = 0.30 + 0.20 * (ed_tail - ED_TAIL_MIN) / (ED_TAIL_MAX - ED_TAIL_MIN)
+        w_tail = float(np.clip(w_tail, 0.28, 0.52))
 
         for iz, zc in enumerate(z_centers):
-            w_head = np.exp(-0.5 * ((zc - z_h_rel) / hg_half) ** 2)
+            # cabeza
+            w_head = np.exp(-0.5 * ((zc - z_h_rel) / hg_half_eff) ** 2)
             if w_head > 0.05:
                 vol[ix, iy, iz] = (
                     vol[ix, iy, iz] * (1 - w_head) + ed_head * w_head
                 )
 
+            # cola sn1
             if l.tail1 and len(l.tail1) > 2:
                 z_tail_end_rel = (l.tail1[-1][2] - z_ref) / 10.0
                 z_tail_lo = min(z_g_rel, z_tail_end_rel)
                 z_tail_hi = max(z_g_rel, z_tail_end_rel)
                 if z_tail_lo <= zc <= z_tail_hi:
-                    w_tail = 0.4
                     vol[ix, iy, iz] = (
                         vol[ix, iy, iz] * (1 - w_tail) + ed_tail * w_tail
                     )

@@ -6,9 +6,9 @@ Genera 12 canales por semilla y actualiza el labels.json global.
 No depende de matplotlib, por lo que puede ejecutarse sin entorno gráfico.
 
 Referencias principales:
-    [16] Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [17] Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
-    [22] Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular
+    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [21]  Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular
+    [22]  Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, List
 import numpy as np
 
 import analysis
+import ctf_sim
 from builder import OUTPUT_DIR
 
 if TYPE_CHECKING:
@@ -42,12 +43,12 @@ CHANNEL_DESCRIPTIONS = {
 }
 
 REFERENCES = [
-    "Smith et al. LiveCoMS 2019 [2]",
-    "Helfrich 1973 [4]",
-    "Pinigin Membranes 2022 [5]",
-    "Chakraborty et al. PNAS 2020 [6]",
-    "Piggot et al. JCTC 2017 [7]",
-    "Chaisson et al. JCIM 2025 [9]",
+        "Smith et al. LiveCoMS 2019 [23]",
+        "Helfrich 1973 [11]",
+        "Pinigin Membranes 2022 [12]",
+        "Chakraborty et al. PNAS 2020 [13]",
+        "Piggot et al. JCTC 2017 [16]",
+        "Chaisson et al. JCIM 2025 [18]",
 ]
 
 
@@ -57,9 +58,9 @@ def export_training(membrane: "BicapaCryoET", bins: int = 64) -> str:
 
 
     channels = {
-        "c0_cryoET": (
-            analysis.density_map(membrane, membrane.outer_leaflet, bins=bins)
-            + analysis.density_map(membrane, membrane.inner_leaflet, bins=bins)
+        "c0_cryoET": ctf_sim.simulate_projection(
+            membrane, defocus_um=2.0, snr=0.1,
+            use_electron_density=True, bins_xy=bins,
         ),
         "c1_thickness":   analysis.thickness_map(membrane, bins=bins),
         "c2_rough_outer": analysis.roughness_map(membrane, membrane.outer_leaflet, bins=bins),
@@ -82,8 +83,9 @@ def export_training(membrane: "BicapaCryoET", bins: int = 64) -> str:
         channels["c11_prior_clean"] = electron_density_projection(
             membrane, bins_xy=bins, sigma=0.8
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  [WARN] c11_prior_clean no generado: {type(e).__name__}: {e}")
+        channels["c11_prior_clean"] = np.zeros_like(channels["c0_cryoET"])
 
 
     for name, arr in channels.items():

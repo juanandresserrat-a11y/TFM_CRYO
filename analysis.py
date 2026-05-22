@@ -11,21 +11,21 @@ Esto permite:
   - Cachear resultados costosos externamente
 
 Referencias principales:
-    [1]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
-    [3]  Chakraborty et al. 2020 – efecto del colesterol en la rigidez de membranas insaturadas
-    [4]  Chaisson 2025 – cuantificación de la interdigitación en bicapas simuladas
-    [5]  Kučerka 2011 – espesores de bicapa y áreas lipídicas en PC comunes
-    [6]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel dinámica de membrana
-    [7]  Singer & Nicolson 1972 – modelo de mosaico fluido de membranas
-    [8]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas
-    [9]  Martinez-Sanchez 2024 – generación de datasets sintéticos para cryo-ET
-    [10] Helfrich 1973 – elasticidad de membranas y modelo de fluctuaciones
-    [14] Liu et al. 2021 – simulaciones de membranas a doble resolución
-    [15] Lučič et al. 2013 – cryo-electron tomography in situ
-    [17] Moebel et al. 2021 – deep learning en cryo-ET
-    [20] Piggot 2017 – cálculo de parámetros de orden S_CH
-    [21] Pinigin 2022 – parámetros elásticos en membranas lipídicas
-    [24] Simons & Ikonen 1997 – organización en lipid rafts y principio funcional en membranas celulares
+    [01]  Singer & Nicolson 1972 – modelo de mosaico fluido de membranas
+    [02]  Simons & Ikonen 1997 – organización en lipid rafts y principio funcional en membranas celulares
+    [06]  Lučič et al. 2013 – cryo-electron tomography in situ
+    [11]  Helfrich 1973 – elasticidad de membranas y modelo de fluctuaciones
+    [12]  Pinigin 2022 – parámetros elásticos en membranas lipídicas
+    [13]  Chakraborty et al. 2020 – efecto del colesterol en la rigidez de membranas insaturadas
+    [14]  Kučerka 2011 – espesores de bicapa y áreas lipídicas en PC comunes
+    [16]  Piggot 2017 – cálculo de parámetros de orden S_CH
+    [17]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
+    [18]  Chaisson 2025 – cuantificación de la interdigitación en bicapas simuladas
+    [19]  Martinez-Sanchez 2024 – generación de datasets sintéticos para cryo-ET
+    [22]  Moebel et al. 2021 – deep learning en cryo-ET    
+    [23]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas
+    [24]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel dinámica de membrana    
+    [27]  Liu et al. 2021 – simulaciones de membranas a doble resolución 
 """
 
 from __future__ import annotations
@@ -192,8 +192,10 @@ def midplane_map(
     S_i_sm = gaussian_filter(S_i, sigma=2.5)
     C_i_sm = gaussian_filter(C_i, sigma=2.5)
     with np.errstate(all="ignore"):
-        z_s = np.where(C_s_sm > 0.1, S_s_sm / C_s_sm, membrane.geometry.z_outer)
-        z_i = np.where(C_i_sm > 0.1, S_i_sm / C_i_sm, membrane.geometry.z_inner)
+        # Fallback 0.0: el plano medio de una bicapa centrada en z=0 es 0,
+        # no la posición del glicerol (z_outer/z_inner).
+        z_s = np.where(C_s_sm > 0.1, S_s_sm / C_s_sm, 0.0)
+        z_i = np.where(C_i_sm > 0.1, S_i_sm / C_i_sm, 0.0)
     return (z_s + z_i) / 2.0
 
 

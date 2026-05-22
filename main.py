@@ -42,7 +42,7 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--sims", type=int, nargs="+", default=[27, 42],
-                   metavar="N", help="Numeros de simulacion (default: 1 2 3)")
+                   metavar="N", help="Numeros de simulacion (default: 27 42)")
     p.add_argument("--size", type=float, nargs=2, default=[50.0, 50.0],
                    metavar=("X", "Y"))
     p.add_argument("--paraview",  action="store_true",

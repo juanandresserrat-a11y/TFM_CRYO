@@ -53,12 +53,12 @@
       "c11": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido"
     },
     "referencias": [
-      "Smith et al. LiveCoMS 2019 [2]",
-      "Helfrich 1973 [4]",
-      "Pinigin Membranes 2022 [5]",
-      "Chakraborty et al. PNAS 2020 [6]",
-      "Piggot et al. JCTC 2017 [7]",
-      "Chaisson et al. JCIM 2025 [9]"
+      "Smith et al. LiveCoMS 2019 [23]",
+      "Helfrich 1973 [11]",
+      "Pinigin Membranes 2022 [12]",
+      "Chakraborty et al. PNAS 2020 [13]",
+      "Piggot et al. JCTC 2017 [16]",
+      "Chaisson et al. JCIM 2025 [18]"
     ]
   },
   {
@@ -113,12 +113,12 @@
       "c11": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido"
     },
     "referencias": [
-      "Smith et al. LiveCoMS 2019 [2]",
-      "Helfrich 1973 [4]",
-      "Pinigin Membranes 2022 [5]",
-      "Chakraborty et al. PNAS 2020 [6]",
-      "Piggot et al. JCTC 2017 [7]",
-      "Chaisson et al. JCIM 2025 [9]"
+      "Smith et al. LiveCoMS 2019 [23]",
+      "Helfrich 1973 [11]",
+      "Pinigin Membranes 2022 [12]",
+      "Chakraborty et al. PNAS 2020 [13]",
+      "Piggot et al. JCTC 2017 [16]",
+      "Chaisson et al. JCIM 2025 [18]"
     ]
   },
   {
@@ -133,13 +133,13 @@
     "grosor_hidro_A": 31.21,
     "n_sup": 6852,
     "n_inf": 6407,
-    "n_balsas_s": 1,
+    "n_balsas_s": 2,
     "n_balsas_i": 2,
     "n_pip_clusters": 2,
     "n_perturbadores": 21,
     "densidad_perturbadores": 0.0087,
     "S_CH_medio_gel": 0.898,
-    "S_CH_medio_fluido": 0.727,
+    "S_CH_medio_fluido": 0.728,
     "comp_outer": {
       "POPC": 0.3125,
       "POPE": 0.02,
@@ -174,12 +174,12 @@
       "c11": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido"
     },
     "referencias": [
-      "Smith et al. LiveCoMS 2019 [2]",
-      "Helfrich 1973 [4]",
-      "Pinigin Membranes 2022 [5]",
-      "Chakraborty et al. PNAS 2020 [6]",
-      "Piggot et al. JCTC 2017 [7]",
-      "Chaisson et al. JCIM 2025 [9]"
+      "Smith et al. LiveCoMS 2019 [23]",
+      "Helfrich 1973 [11]",
+      "Pinigin Membranes 2022 [12]",
+      "Chakraborty et al. PNAS 2020 [13]",
+      "Piggot et al. JCTC 2017 [16]",
+      "Chaisson et al. JCIM 2025 [18]"
     ]
   },
   {
@@ -196,7 +196,7 @@
     "n_inf": 6136,
     "n_balsas_s": 1,
     "n_balsas_i": 1,
-    "n_pip_clusters": 2,
+    "n_pip_clusters": 3,
     "n_perturbadores": 38,
     "densidad_perturbadores": 0.0155,
     "S_CH_medio_gel": 0.896,
@@ -235,12 +235,12 @@
       "c11": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido"
     },
     "referencias": [
-      "Smith et al. LiveCoMS 2019 [2]",
-      "Helfrich 1973 [4]",
-      "Pinigin Membranes 2022 [5]",
-      "Chakraborty et al. PNAS 2020 [6]",
-      "Piggot et al. JCTC 2017 [7]",
-      "Chaisson et al. JCIM 2025 [9]"
+      "Smith et al. LiveCoMS 2019 [23]",
+      "Helfrich 1973 [11]",
+      "Pinigin Membranes 2022 [12]",
+      "Chakraborty et al. PNAS 2020 [13]",
+      "Piggot et al. JCTC 2017 [16]",
+      "Chaisson et al. JCIM 2025 [18]"
     ]
   },
   {
@@ -294,12 +294,12 @@
       "c11": "prior_limpio_densidad_electronica_sin_CTF_ni_ruido"
     },
     "referencias": [
-      "Smith et al. LiveCoMS 2019 [2]",
-      "Helfrich 1973 [4]",
-      "Pinigin Membranes 2022 [5]",
-      "Chakraborty et al. PNAS 2020 [6]",
-      "Piggot et al. JCTC 2017 [7]",
-      "Chaisson et al. JCIM 2025 [9]"
+      "Smith et al. LiveCoMS 2019 [23]",
+      "Helfrich 1973 [11]",
+      "Pinigin Membranes 2022 [12]",
+      "Chakraborty et al. PNAS 2020 [13]",
+      "Piggot et al. JCTC 2017 [16]",
+      "Chaisson et al. JCIM 2025 [18]"
     ]
   }
 ]

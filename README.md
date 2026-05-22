@@ -1,305 +1,162 @@
-# TFM
-Generador de datasets sintéticos de membranas lipídicas para Cryo-ET y machine learning.
+# TFM — Generador sintético de bicapas lipídicas para Cryo-ET
 
-## Descripción
-
-Este proyecto genera datasets sintéticos de bicapas lipídicas simuladas para aplicaciones
-en Cryo-Electron Tomography (Cryo-ET) y machine learning. Incluye herramientas para:
-
-- Construir bicapas lipídicas asimétricas con dominios Lo/Ld, clusters de PIPs y proteínas transmembrana
-- Simular contraste cryo-ET realista (CTF, missing wedge, ruido Poisson + Gaussiano)
-- Exportar datos en múltiples formatos: campos `.npy`, MRC (PolNet), PDB/CSV, VTP (ParaView)
-- Validar propiedades biofísicas contra referencias de la literatura
-- Generar figuras de publicación para TFM / artículo científico
+Genera datasets sintéticos de membranas lipídicas simuladas para Cryo-ET y machine learning, con exportación multiformato y figuras de publicación.
 
 ---
 
-## Estructura del Repositorio
+## Instalación
 
-```
-TFM/
-├── main.py                  # Punto de entrada principal (CLI)
-├── builder.py               # Construcción de la bicapa y lógica principal
-├── lipid_types.py           # Definición de tipos lipídicos y parámetros biofísicos
-├── geometry.py              # Dataclasses: MembraneGeometry y LipidInstance
-├── physics.py               # Física: curvatura Helfrich, cadenas acil, S_CH
-├── analysis.py              # Mapas 2D/3D: densidad, rugosidad, grosor, orden
-├── electron_density.py      # Densidad electrónica real por tipo lipídico (e·Å⁻³)
-├── ctf_sim.py               # Simulación TEM: CTF, missing wedge, ruido
-├── figures.py               # Figuras de publicación (9 paneles, 300 DPI)
-├── model_3d.py              # Modelo 3D físico: volumen ED, etiquetas, panel visual
-├── export.py                # Exportación de campos .npy y etiquetas.json
-├── export_mrc.py            # Exportación MRC para PolNet (densidad + etiquetas)
-├── export_paraview.py       # Exportación VTP para ParaView (granos CG)
-├── export_positions.py      # Posiciones 3D: PDB, CSV, PolNet particle list
-├── validation.py            # Benchmarks biofísicos y panel de validación
-├── dataset_stats.py         # Estadísticas de dataset multi-simulación
-├── results.py               # Figuras de resultados para TFM (R1–R6)
-├── README.md                # Este archivo
-├── requirements.txt         # Dependencias
-└── CryoET/                  # Outputs generados (creado automáticamente)
-    ├── figuras/
-    │   └── simulacion{N}/   # Figuras PNG de publicación por simulación
-    ├── entrenamiento/
-    │   ├── simulacion{N}/   # Campos .npy por simulación
-    │   └── labels.json      # Metadatos agregados de todas las simulaciones
-    ├── mrc/                 # Volúmenes MRC para PolNet
-    ├── paraview/            # Archivos VTP para ParaView
-    ├── posiciones/          # PDB, CSV y particle list
-    ├── modelo3d/            # Volúmenes 3D físicos
-    ├── validacion/          # JSONs de benchmarks y paneles de validación
-    └── resultados/          # PDFs de resultados para TFM (R1–R6)
+```bash
+python -m pip install -r requirements.txt --user
 ```
 
 ---
 
-## 1. Instalación
+## Uso rápido
 
 ```bash
-cd TFM/
-pip install -r requirements.txt
+# Paso 1 — generar simulaciones (datos base)
+python main.py --sims 1 2 3 4 5 --validate --all
+
+# Paso 2 — generar figuras de resultados
+python results.py --sims 1 2 3 4 5
 ```
+
+Los resultados se guardan en `CryoET/`.
 
 ---
 
-## 2. Generar simulaciones — `main.py`
-
-Cada **simulación** genera una membrana diferente con composición lipídica ligeramente
-distinta (muestreo Dirichlet). Los datos generados son la base para todo lo demás.
-
-### Mínimo — campos de entrenamiento
+## main.py — Generar simulaciones
 
 ```bash
-# Una simulación
-python main.py --sims 1
-
-# Varias simulaciones a la vez
-python main.py --sims 1 2 3 4 5
+python main.py --sims 27            # una simulación
+python main.py --sims 1 2 3 4 5     # varias
+python main.py --sims 27 --all      # todos los formatos de exportación
 ```
-
-Genera `CryoET/entrenamiento/simulacion{N}/` con los 12 campos `.npy` y actualiza `labels.json`.
-
-### Con validación biofísica
-
-```bash
-python main.py --sims 27 --validate
-python main.py --sims 1 2 3 4 5 --validate --stats
-```
-
-### Todos los formatos de exportación
-
-```bash
-# Todo de una vez
-python main.py --sims 27 --all
-
-# O seleccionar individualmente
-python main.py --sims 27 --paraview   # VTP para ParaView
-python main.py --sims 27 --mrc        # MRC para PolNet
-python main.py --sims 27 --positions  # PDB + CSV + particle list
-python main.py --sims 27 --model3d    # Volumen 3D físico
-python main.py --sims 27 --figures    # Figuras de publicación PNG
-```
-
-### Dataset completo para ML
-
-```bash
-# 50 simulaciones, solo entrenamiento (rápido, sin figuras)
-python main.py --sims $(seq 0 49) --stats
-
-# 100 simulaciones con validación
-python main.py --sims $(seq 0 99) --validate --stats
-```
-
-### Flags de main.py
 
 | Flag | Descripción |
 |---|---|
-| `--sims N [N ...]` | Simulaciones a generar (default: 27 42) |
-| `--paraview` | Exporta VTP + README para ParaView |
-| `--model3d` | Volumen 3D de densidad electrónica real (MRC) |
-| `--mrc` | MRC simplificado + doble gaussiana para PolNet |
-| `--positions` | PDB completo + CSV + PolNet particle list |
-| `--validate` | Panel de validación biofísica (9 benchmarks) |
-| `--figures` | Figuras de publicación (9 paneles, 300 DPI) |
-| `--stats` | Estadísticas del dataset (requiere >1 simulación) |
-| `--dpi N` | Resolución de figuras (default: 200) |
+| `--sims N [N ...]` | Semillas a simular (default: 27 42) |
+| `--validate` | Benchmarks biofísicos |
+| `--paraview` | VTP + script de visualización para ParaView |
+| `--model3d` | Volumen 3D de densidad electrónica (MRC) |
+| `--mrc` | MRC simplificado para PolNet |
+| `--positions` | PDB + CSV + particle list |
+| `--figures` | Figuras de publicación PNG |
+| `--stats` | Estadísticas del dataset (requiere ≥2 simulaciones) |
 | `--all` | Activa: paraview + model3d + validate + mrc + positions |
 
 ---
 
-## 3. Generar figuras de resultados — `results.py`
-
-`results.py` genera figuras de publicación en PDF organizadas por secciones
-de resultados de TFM. Lee los datos ya generados por `main.py`.
-
-> **Requisito:** ejecutar `main.py --sims N` antes de `results.py --sims N`.
-
-### Uso básico
+## results.py — Figuras de resultados
 
 ```bash
-# Todas las figuras (R1–R6) para una simulación
-python results.py --sims 1
-
-# Varias simulaciones — activa R6 multi-simulación automáticamente
-python results.py --sims 1 2 3 4 5
-
-# Solo secciones específicas
-python results.py --sims 27 --only R1 R3 R5
-
-# Resolución máxima para publicación
-python results.py --sims 27 --dpi 300
+python results.py --sims 1 2 3 4 5         # R1–R6 completo
+python results.py --sims 27 --only R1 R3   # secciones específicas
 ```
 
-### Flujo completo recomendado
-
-```bash
-# Paso 1: generar datos
-python main.py --sims 1 2 3 4 5 --validate --figures --all
-
-# Paso 2: generar todas las figuras de resultados
-python results.py --sims 1 2 3 4 5
-
-# Paso 3: solo las figuras utilizadas para el TFM
-python results.py --sims 1 2 3 4 5 --only R1 R2 R3 R4
-```
+| Sección | Contenido |
+|---|---|
+| `R1` | Composición, parámetros elásticos, perfil ED |
+| `R2` | Tabla de benchmarks y scores de validación |
+| `R3` | Organización lateral: dominios Lo/Ld y PIPs |
+| `R4` | Galería de los 12 campos de entrenamiento |
+| `R5` | Calidad cryo-ET: CTF, ruido, espectros PSD |
+| `R6` | Comparativa multi-simulación (requiere ≥2) |
+| `R6b` | Convergencia acumulada para justificar N=5 (requiere ≥2) |
 
 Los PDFs se guardan en `CryoET/resultados/`.
 
-### Secciones disponibles (R1–R6)
+---
 
-| Sección | PDF generado | Contenido | Simulaciones |
-|---|---|---|---|
-| `R1` | `R1_caracterizacion_simulacion{N}.pdf` | Composición, parámetros elásticos, perfil ED, grosor Lo/Ld | 1 |
-| `R2` | `R2_validacion_simulacion{N}.pdf` | Tabla de benchmarks, Helfrich, S_CH, interdigitación | 1 |
-| `R3` | `R3_organizacion_lateral_simulacion{N}.pdf` | Mapa Lo/Ld, PIPs sobre fase, S_CH 2D, densidad PIPs | 1 |
-| `R4` | `R4_campos_entrenamiento_simulacion{N}.pdf` | Galería de los 12 campos .npy en cuadrícula 3×4 | 1 |
-| `R5` | `R5_calidad_cryoET_simulacion{N}.pdf` | Imagen limpia / CTF / ruido, espectros PSD, curvas CTF | 1 |
-| `R6` | `R6_comparativa_multisimulacion.pdf` | Violinplots kc/grosor/S_CH, score por simulación, composición ± DE | ≥2 |
-| `R6b` | `R6b_justificacion_N.pdf` | Convergencia acumulada para justificar N=5 | ≥2 |
+## Visualización en ParaView
 
-> R6 y R6b requieren al menos 2 simulaciones y se saltan automáticamente si solo hay una.
+### Archivos necesarios
 
-### Flags de results.py
+Cada simulación genera en `CryoET/paraview/simulacion{N}/` dos archivos:
 
-| Flag | Descripción |
+| Archivo | Descripción |
 |---|---|
-| `--sims N [N ...]` | Simulaciones a procesar (ya generadas con main.py) |
-| `--only R1 R3 ...` | Generar solo esas secciones (R1–R6) |
-| `--dpi N` | Resolución de salida en DPI (default: 300) |
+| `bicapa_sim{N}.vtp` | **Requerido** — geometría completa de la bicapa |
+| `visualize_sim{N}.py` | **Requerido** — script de estado de ParaView |
+| `bicapa_*_heads.vtp` | Opcional — solo cabezas polares |
+| `bicapa_*_tails.vtp` | Opcional — solo colas acilo |
+| `bicapa_*_lo_domain.vtp` | Opcional — dominio Lo aislado |
+| `bicapa_*_pips.vtp` | Opcional — clústeres de PIPs |
+
+Los archivos opcionales permiten explorar componentes por separado, pero para la visualización estándar solo se necesitan los dos primeros.
+
+### Cómo abrir
+
+**Opción A — script de estado (recomendado):**
+```
+ParaView → File → Load State → visualize_sim{N}.py
+```
+Carga automáticamente el VTP, aplica todos los filtros y configura la cámara y la escala de colores Blue–Green–Orange por densidad electrónica.
+
+**Opción B — abrir el VTP directamente:**
+```
+ParaView → File → Open → bicapa_sim{N}.vtp
+```
+Requiere configurar los filtros manualmente (Threshold, Tube, colormaps).
+
+### Lo que verás
+
+La escena cargada por el script muestra dos layouts:
+- **Vista principal** — perspectiva lateral con colas como tubos y cabezas/glicerol/CHOL coloreados por densidad electrónica
+- **Vista secundaria** — vista cenital de la bicapa completa
 
 ---
 
-## 4. Campos de entrenamiento generados
+## Campos de entrenamiento
 
-Por cada simulación en `CryoET/entrenamiento/simulacion{N}/`:
+Por simulación en `CryoET/entrenamiento/simulacion{N}/` (64×64 px, float32):
 
-| Archivo | Descripción | Unidades |
-|---|---|---|
-| `c0_cryoET.npy` | Densidad proyectada (entrada CNN) | Da·Å⁻² |
-| `c1_thickness.npy` | Grosor local de la bicapa | Å |
-| `c2_rough_outer.npy` | Rugosidad monocapa externa σ_z | Å |
-| `c3_rough_inner.npy` | Rugosidad monocapa interna σ_z | Å |
-| `c4_raft_outer.npy` | Fracción local Lo monocapa externa | [0, 1] |
-| `c5_raft_inner.npy` | Fracción local Lo monocapa interna | [0, 1] |
-| `c6_pip_density.npy` | Densidad de fosfoinosítidos | Da·Å⁻² |
-| `c7_asymmetry.npy` | Asimetría composicional ext − int | Da·Å⁻² |
-| `c8_xz_slice.npy` | Sección transversal XZ | Da·Å⁻² |
-| `c9_order.npy` | Parámetro de orden S_CH medio | [0, 1] |
-| `c10_interdig.npy` | Interdigitación trans-leaflet | [0, 1] |
-| `c11_prior_clean.npy` | Densidad electrónica sin CTF ni ruido | e·Å⁻³ |
-| `labels.json` | Metadatos: composición, parámetros físicos, referencias | — |
-
-Los campos están numerados consecutivamente c0–c11 (12 campos en total, 64×64 px, float32).
-
-### Cargar los campos en Python
+| Campo | Descripción |
+|---|---|
+| `c0_cryoET.npy` | Imagen cryo-ET simulada (CTF + ruido) |
+| `c1_thickness.npy` | Grosor local (Å) |
+| `c2/c3_rough_*.npy` | Rugosidad monocapa externa/interna (Å) |
+| `c4/c5_raft_*.npy` | Fracción Lo externa/interna [0,1] |
+| `c6_pip_density.npy` | Densidad de fosfoinosítidos |
+| `c7_asymmetry.npy` | Asimetría composicional ext − int |
+| `c8_xz_slice.npy` | Sección transversal XZ |
+| `c9_order.npy` | Parámetro de orden S_CH [0,1] |
+| `c10_interdig.npy` | Interdigitación trans-leaflet [0,1] |
+| `c11_prior_clean.npy` | Densidad electrónica sin degradación |
 
 ```python
-import numpy as np, json, os
+import numpy as np
+import os
 
-sim = 1
-base = f"CryoET/entrenamiento/simulacion{sim:04d}/"
-
-# Campo individual
-c0 = np.load(base + "c0_cryoET.npy")          # shape (64, 64)
-
-# Tensor completo con todos los campos
+base = "CryoET/entrenamiento/simulacion0001/"
 files = sorted(f for f in os.listdir(base) if f.endswith(".npy"))
-tensor = np.stack([np.load(base + f) for f in files])  # shape (12, 64, 64)
-
-# Metadatos de la simulación
-with open("CryoET/entrenamiento/labels.json") as f:
-    labels = json.load(f)
-meta = next(m for m in labels if m["seed"] == sim)
-print(meta["kc_kBT_nm2"], meta["grosor_total_A"], meta["comp_outer"])
+tensor = np.stack([np.load(base + f) for f in files])  # (12, 64, 64)
 ```
 
 ---
 
-## 5. Formatos de exportación adicionales
+## Estructura de salida
 
-### MRC para PolNet
-
-```bash
-python main.py --sims 27 --mrc
-# Salida: CryoET/mrc/
-#   bicapa_simulacion{N}.mrc                   densidad 3D normalizada
-#   bicapa_simulacion{N}_etiquetas.mrc         etiquetas: 0=agua 1=cabeza_ext 2=nucleo 3=cabeza_int
-#   bicapa_gaussiana_simulacion{N}.mrc         perfil doble gaussiana compatible PolNet
-#   bicapa_simulacion{N}_etiquetas_cerradas.mrc  etiquetas con cierre morfológico
-#   config_simulacion{N}.yaml                  polnet --config config_simulacion{N}.yaml
 ```
-
-### ParaView (VTP)
-
-```bash
-python main.py --sims 27 --paraview
-# Salida: CryoET/paraview/simulacion{N}/
-# Abrir en ParaView → Filters → Tube → colorear por electron_density / in_raft / is_protein
-```
-
-### Posiciones 3D
-
-```bash
-python main.py --sims 27 --positions
-# Salida: CryoET/posiciones/
-#   bicapa_simulacion{N}.pdb               compatible PyMOL, ChimeraX, VMD
-#   posiciones_simulacion{N}.csv           tabla xyz + fase + orden + raft + PIP
-#   polnet_particulas_simulacion{N}.csv    orientación en cuaternión para PolNet
+CryoET/
+├── entrenamiento/simulacion{N}/   # 12 campos .npy + labels.json
+├── resultados/                    # PDFs de figuras R1–R6
+├── paraview/simulacion{N}/        # VTP + script visualize_sim{N}.py
+├── mrc/                           # Volúmenes MRC para PolNet
+├── posiciones/                    # PDB + CSV + particle list
+├── modelo3d/                      # Volúmenes 3D físicos
+└── validacion/                    # JSONs de benchmarks
 ```
 
 ---
 
-## 6. Composición lipídica por defecto
+## Referencias clave
 
-| Especie | Monocapa externa | Monocapa interna |
-|---|---|---|
-| POPC | 33% | 18% |
-| SM | 24% | — |
-| CHOL | 30% | 28% |
-| GM1 | 5% | — |
-| POPE | 4% | 19% |
-| PlsPE | — | 5% |
-| POPS | — | 14% |
-| PI / PIPs | 4% | 16% |
+1. Singer & Nicolson. Science 1972 — modelo de mosaico fluido
+2. Simons & Ikonen. Nature 1997 — balsas lipídicas
+3. Helfrich W. Z Naturforsch C 1973 — elasticidad de membranas
+4. Martinez-Sanchez et al. IEEE Trans Med Imaging 2024 — datos sintéticos cryo-ET
+5. Sharma et al. Emerg Top Life Sci 2023 — visualización de membranas con cryo-EM
 
-La composición varía entre simulaciones mediante muestreo Dirichlet (k=50).
-
----
-
-## 7. Referencias principales
-
-Chaisson, E. H., Heberle, F. A., & Doktorova, M. (2025). Quantifying acyl chain interdigitation in simulated bilayers via direct transbilayer interactions. *Journal of Chemical Information and Modeling*, *65*(8), 3879–3885. https://doi.org/10.1021/acs.jcim.4c02287
-
-Di Paolo, G., & De Camilli, P. (2006). Phosphoinositides in cell regulation and membrane dynamics. *Nature*, *443*(7112), 651–657. https://doi.org/10.1038/nature05185
-
-Helfrich, W. (1973). Elastic properties of lipid bilayers: Theory and possible experiments. *Zeitschrift für Naturforschung C*, *28*(11-12), 693–703. https://doi.org/10.1515/znc-1973-11-1209
-
-Kučerka, N., Nieh, M.-P., & Katsaras, J. (2011). Fluid phase lipid areas and bilayer thicknesses of commonly used phosphatidylcholines as a function of temperature. *Biochimica et Biophysica Acta Biomembranes*, *1808*(11), 2761–2771. https://doi.org/10.1016/j.bbamem.2011.07.022
-
-Martinez-Sanchez, A., Lamm, L., Jasnin, M., & Phelippeau, H. (2024). Simulating the cellular context in synthetic datasets for cryo-electron tomography. *IEEE Transactions on Medical Imaging*, *43*(11), 3742–3754. https://doi.org/10.1109/TMI.2024.3398401
-
-Nagle, J. F., & Tristram-Nagle, S. (2000). Structure of lipid bilayers. *Biochimica et Biophysica Acta Reviews on Biomembranes*, *1469*(3), 159–195. https://doi.org/10.1016/S0304-4157(00)00016-2
-
-Piggot, T. J., Allison, J. R., Sessions, R. B., & Essex, J. W. (2017). On the calculation of acyl chain order parameters from lipid simulations. *Journal of Chemical Theory and Computation*, *13*(11), 5683–5696. https://doi.org/10.1021/acs.jctc.7b00643
-
-Pinigin, K. V. (2022). Determination of elastic parameters of lipid membranes with molecular dynamics: A review of approaches and theoretical aspects. *Membranes*, *12*(11), 1049. https://doi.org/10.3390/membranes12111149
+Bibliografía completa en el TFM.
