@@ -8,20 +8,20 @@ Figuras producidas:
     R3  Organización lateral (mapas Lo/Ld, PIPs, parámetro de orden)
     R4  Campos de entrenamiento (12 campos para deep learning)
     R5  Calidad cryo-ET (CTF, ruido, PSD, missing wedge)
-    R6  Comparativa multi-simulación y justificación de N=5
+    R6  Comparativa multi-simulación y justificación de N (dinámico)
 
 Referencias principales:
     [08]  Sharma et al. 2023 – estructura de membranas en cryo-EM
-    [11]  Helfrich 1973 – elasticidad de membranas y espectro de fluctuaciones
-    [12]  Pinigin 2022 – parámetros elásticos de membranas desde MD
-    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
-    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
-    [16]  Piggot et al. 2017 – cálculo de parámetros de orden acil S_CH
-    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos
-    [20]  Peck et al. 2025 – benchmark con ground-truth para cryo-ET
-    [21]  Seghiri et al. 2026 – segmentación aumentada de membranas
-    [22]  Moebel et al. 2021 – deep learning en tomogramas celulares de cryo-ET
-    [25]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET) 
+    [11]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos
+    [12]  Peck et al. 2025 – benchmark con ground-truth para cryo-ET
+    [13]  Seghiri et al. 2026 – segmentación aumentada de membranas
+    [14]  Moebel et al. 2021 – deep learning en tomogramas celulares de cryo-ET
+    [15]  Helfrich 1973 – elasticidad de membranas y espectro de fluctuaciones
+    [16]  Pinigin 2022 – parámetros elásticos de membranas desde MD
+    [17]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [18]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [20]  Piggot et al. 2017 – cálculo de parámetros de orden acil S_CH
+    [23]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET) 
 """
 from __future__ import annotations
 
@@ -219,10 +219,10 @@ def _plot_strip_r6(ax, values, x_center, color,
 
     ax.set_xlim(0.35, 1.85)
     ax.set_xticks([x_center])
-    ax.set_xticklabels(["N = 5"], fontsize=8.5)
+    ax.set_xticklabels([f"N = {len(values)}"], fontsize=8.5)
     ax.set_ylabel(ylabel, labelpad=4)
     if title:
-        ax.set_title(title, fontweight="bold", pad=5, loc="left")
+        ax.set_title(title, fontweight="bold", pad=12, loc="left")
     _despine(ax)
 
 
@@ -316,46 +316,92 @@ def plot_R1_caracterizacion(membrane: BicapaCryoET, dpi: int = 300) -> str:
 
         _panel_label(ax_param, "C")
         params = {
-            "kc (kBT·nm2)": {
+            "kc": {
                 "val": membrane.bending_modulus,
                 "ref_lo": 20, "ref_hi": 45,
                 "unit": "kBT·nm2", "color": C["lo"]
             },
-            "sigma (kBT·nm-2)": {
+            "sigma": {
                 "val": membrane.surface_tension,
-                "ref_lo": -0.005, "ref_hi": 0.005,
+                "ref_lo": 0.0001, "ref_hi": 0.005,
                 "unit": "kBT·nm-2", "color": C["ld"]
             },
-            "D_PP (A)": {
+            "D_PP": {
                 "val": g.total_thick,
                 "ref_lo": 35, "ref_hi": 50,
-                "unit": "A", "color": "#fb8500"
+                "unit": "A (global)", "color": "#2a9d8f"
             },
         }
+        WARN_COLOR = C["close"]   # naranja: "#f4a261"
+
         for i, (label, p) in enumerate(params.items()):
             v, lo, hi = p["val"], p["ref_lo"], p["ref_hi"]
-            rng = hi - lo
-            frac = np.clip((v - lo) / rng, 0, 1)
-            ax_param.barh(i, frac, color=p["color"], height=0.55,
-                          edgecolor="white", linewidth=0.4, alpha=0.85)
-            ax_param.barh(i, 1.0, color=C["grid"], height=0.55,
-                          edgecolor=C["neutral"], linewidth=0.4,
-                          alpha=0.3, zorder=0, label="Rango ref." if i == 0 else "")
-            status = "PASS" if lo <= v <= hi else "WARN"
-            
-            if abs(v) < 0.1:
-                val_str = f"{v:.4f}"
-            else:
-                val_str = f"{v:.1f}"
-            
-            ax_param.text(1.03, i, f"{status} {val_str} {p['unit']}",
-                          va="center", fontsize=8, color=C["line"])
+            rng       = hi - lo
+            frac        = np.clip((v - lo) / rng, 0.0, 1.0) if rng != 0 else 0.0
+            out_of_range = not (lo <= v <= hi)
 
+            # ── Fondo gris ANCHO: rango de referencia completo [0 → 1] ──
+            ax_param.barh(i, 1.0, color=C["grid"], height=0.70,
+                          edgecolor=C["neutral"], linewidth=0.4,
+                          alpha=0.22, zorder=0,
+                          label="Rango ref." if i == 0 else "")
+
+            # ── Barra del valor DELGADA: bullet chart ──
+            # Color SIEMPRE el del parámetro; la alerta va solo en la flecha/texto
+            bar_color = p["color"]
+            ax_param.barh(i, frac, color=bar_color, height=0.22,
+                          edgecolor="white", linewidth=0.5,
+                          alpha=0.95, zorder=3)
+
+            # ── Bordes del rango de referencia ──
+            ax_param.axvline(0.0, color=C["neutral"], lw=0.7, ls="-",
+                             alpha=0.35, zorder=1)
+
+            # Marcador de desbordamiento (más prominente)
+            if out_of_range:
+                if v > hi:
+                    ax_param.text(1.05, i, "▶",
+                                  va="center", ha="left",
+                                  fontsize=12, color=WARN_COLOR,
+                                  fontweight="bold", zorder=6,
+                                  clip_on=False)
+                    # Línea punteada que indica cuánto se pasó
+                    ax_param.plot([1.0, 1.12], [i, i], color=WARN_COLOR,
+                                  lw=1.2, ls=":", alpha=0.6, zorder=2,
+                                  clip_on=False)
+                else:
+                    ax_param.text(-0.04, i, "◀",
+                                  va="center", ha="right",
+                                  fontsize=12, color=WARN_COLOR,
+                                  fontweight="bold", zorder=6,
+                                  clip_on=False)
+                    ax_param.plot([-0.10, 0.0], [i, i], color=WARN_COLOR,
+                                  lw=1.2, ls=":", alpha=0.6, zorder=2,
+                                  clip_on=False)
+
+            status       = "PASS" if not out_of_range else "WARN"
+            status_color = C["pass"] if not out_of_range else WARN_COLOR
+
+            val_str = f"{v:.4f}" if abs(v) < 0.1 else f"{v:.1f}"
+
+            # Texto a la derecha con símbolo de estado (dentro del xlim extendido)
+            ax_param.text(1.17, i,
+                          f"{status}  {val_str} {p['unit']}",
+                          va="center", fontsize=8.5,
+                          color=status_color,
+                          fontweight="bold" if out_of_range else "normal",
+                          clip_on=False)
+
+        # Línea discontinua en Máx ref.
+        ax_param.axvline(1.0, color=C["neutral"], lw=0.9, ls="--",
+                         alpha=0.55, zorder=1)
         ax_param.set_yticks(range(len(params)))
         ax_param.set_yticklabels(list(params.keys()), fontsize=8.5)
-        ax_param.set_xlim(0, 1.0)
-        ax_param.set_xticks([0, 0.5, 1.0])
-        ax_param.set_xticklabels(["Mín ref.", "50%", "Máx ref."], fontsize=8)
+        # xlim extendido: la línea de Máx ref (1.0) ya NO está en el borde físico,
+        # dejando espacio a la derecha para visualizar desbordamientos cómodamente.
+        ax_param.set_xlim(-0.02, 1.22)
+        ax_param.set_xticks([0.0, 0.5, 1.0])
+        ax_param.set_xticklabels(["Mín ref.", "50 %", "Máx ref."], fontsize=8)
         ax_param.set_title("Parámetros elásticos", pad=5)
         _despine(ax_param)
 
@@ -427,7 +473,7 @@ def plot_R2_validacion(membrane: BicapaCryoET,
         rows = [
             ("Helfrich pendiente",  "slope_high_q", "helfrich",
              "−4 ± 0.3", "accuracy"),
-            ("Grosor D_PP (A)",     "mean_nm",       "thickness",
+            ("Grosor D_PP por fase (A)", "mean_nm",  "thickness",
              "35–50 Å", "accuracy_diff"),
             ("ΔD Lo−Ld (Å)",        "diff_A",        "thickness",
              "3–6 Å", "accuracy_diff"),
@@ -515,8 +561,8 @@ def plot_R2_validacion(membrane: BicapaCryoET,
                         va="center", ha="center", color=status_col, fontweight="bold")
 
         ax_tbl.text(0.5, -0.02,
-                    f"Nota: SCH calculado sobre glicerofosfolípidos (excl. CHOL). "
-                    f"CHOL intrinseco = {chol_mean:.2f}.  Delta S_CH = {delta_sch:.3f}",
+                    f"Nota: SCH excl. CHOL (CHOL intrínseco = {chol_mean:.2f}; ΔS_CH = {delta_sch:.3f}). "
+                    f"D_PP por fase: medición local Lo/Ld. D_PP global (R1): perfil promediado completo.",
                     transform=ax_tbl.transAxes, fontsize=7.5,
                     ha="center", va="top", color=C["neutral"], style="italic")
 
@@ -608,7 +654,7 @@ def plot_R2_validacion(membrane: BicapaCryoET,
                     "Lo ref.", ha="center", va="top", fontsize=8,
                     color=C["lo"], transform=ax_sch.transData)
         ax_sch.set_xlabel("S_CH")
-        ax_sch.set_ylabel("PDF")
+        ax_sch.set_ylabel("Densidad norm.")
         ax_sch.set_title("")
         ax_sch.legend(fontsize=8, loc="upper left")
         _despine(ax_sch)
@@ -868,11 +914,6 @@ def plot_R3_organizacion(membrane: BicapaCryoET, dpi: int = 300) -> str:
         cb2.set_label("S_CH", fontsize=8.5, labelpad=3)
         cb2.ax.tick_params(labelsize=6)
 
-        ax_c.axhspan(0.85, 0.95, xmin=0, xmax=0.15, color=C["lo"], alpha=0.3, transform=ax_c.transAxes)
-        ax_c.axhspan(0.60, 0.75, xmin=0, xmax=0.15, color=C["ld"], alpha=0.3, transform=ax_c.transAxes)
-        ax_c.text(0.02, 0.90, "Lo 0.85-0.95", transform=ax_c.transAxes, fontsize=8, color=C["lo"], va="top")
-        ax_c.text(0.02, 0.70, "Ld 0.60-0.75", transform=ax_c.transAxes, fontsize=8, color=C["ld"], va="top")
-
         ax_c.set_xlabel("x (nm)")
         ax_c.set_ylabel("y (nm)")
         ax_c.set_title("Parámetro de orden S_CH", pad=5)
@@ -1020,12 +1061,12 @@ def plot_R4_campos(membrane: BicapaCryoET, dpi: int = 300) -> str:
             f"Campos de Entrenamiento | Simulacion = {seed}  "
             f"({bins}×{bins} px por campo)",
             fontsize=11, fontweight="bold", y=0.99)
-        plt.subplots_adjust(left=0.04, right=0.97, top=0.94, bottom=0.04,
-                            hspace=0.38, wspace=0.28)
+        plt.subplots_adjust(left=0.05, right=0.96, top=0.94, bottom=0.04,
+                            hspace=0.40, wspace=0.34)
 
         ext = [0, membrane.Lx/10, 0, membrane.Ly/10]
-        for ax, (title, arr) in zip(axes.ravel(), campos.items()):
-            ch_key = title.split()[0]
+        for i, (ax, (title, arr)) in enumerate(zip(axes.ravel(), campos.items())):
+            ch_key = f"c{i}"
             cmap = cmaps.get(ch_key, "viridis")
 
             vlo = np.percentile(arr, 2)
@@ -1035,10 +1076,29 @@ def plot_R4_campos(membrane: BicapaCryoET, dpi: int = 300) -> str:
             im = ax.imshow(arr.T, origin="lower", extent=ext,
                            cmap=cmap, vmin=vlo, vmax=vhi,
                            aspect="equal", interpolation="bilinear")
-            cb = plt.colorbar(im, ax=ax, shrink=0.9, pad=0.02,
-                              fraction=0.046)
-            cb.ax.tick_params(labelsize=7.5)
-            ax.set_title(title, fontsize=8.5, pad=3)
+            # Colorbar más ancho para acomodar el label de unidades con claridad
+            cb = plt.colorbar(im, ax=ax, shrink=0.88, pad=0.03,
+                              fraction=0.08)
+            # Extraer unidades del título (segunda línea)
+            _parts = title.split("\n")
+            _unit_str = _parts[1].strip() if len(_parts) > 1 else ""
+            if _unit_str:
+                # Tick labels numéricos del colorbar SÍ visibles;
+                # el label de unidades se muestra solo en el recuadro del panel
+                # Recuadro de unidades en esquina inferior derecha:
+                # visible tanto en PDF como en PNG, sin solaparse con el título
+                ax.text(0.97, 0.06, _unit_str,
+                        transform=ax.transAxes,
+                        fontsize=8, fontweight="bold",
+                        ha="right", va="bottom",
+                        color=C["line"],
+                        bbox=dict(boxstyle="round,pad=0.25",
+                                  facecolor="white", alpha=0.90,
+                                  edgecolor=C["neutral"], linewidth=0.6),
+                        zorder=10)
+            # Tick labels numéricos del colorbar visibles
+            # Título limpio: solo el nombre descriptivo (sin prefijo cX ni unidades)
+            ax.set_title(title.split("\n")[0], fontsize=8.5, pad=3)
             ax.set_xlabel("x (nm)", fontsize=8.5)
             ax.set_ylabel("y (nm)", fontsize=8.5)
             ax.tick_params(labelsize=6)
@@ -1243,14 +1303,29 @@ def plot_R6_multisimulacion(stats: Dict, dpi: int = 300) -> str:
                         edgecolor="white", linewidth=0.8, zorder=3)
         ax_D.axhline(80, color=C["fail"], lw=1.2, ls="--",
                      label="Umbral 80%", zorder=4)
-        for b, q in zip(bars, val_s):
-            ax_D.text(b.get_x() + b.get_width() / 2, q + 1.0,
-                      f"{q:.0f}", ha="center", va="bottom",
-                      fontsize=8, fontweight="bold", color=C["line"])
         ax_D.set_ylim(0, 108)
-        ax_D.set_xticks(range(1, N + 1))
-        ax_D.set_xticklabels([f"sim{s}" for s in seeds], fontsize=8.5)
+        if N > 10:
+            _step = 5
+            _tick_idx = list(range(0, N, _step))
+            _tick_pos_d = [1] + [i + 1 for i in range(4, N, 5)]
+            if N not in _tick_pos_d:
+                _tick_pos_d.append(N)
+            _tick_lbl_d = [str(p) for p in _tick_pos_d]
+        else:
+            _tick_pos_d = list(range(1, N + 1))
+            _tick_lbl_d = [str(i) for i in range(1, N + 1)]
+        ax_D.set_xticks(_tick_pos_d)
+        ax_D.set_xticklabels(_tick_lbl_d, fontsize=8.5,
+                             rotation=0, ha="center")
+        ax_D.set_xlabel("Simulación", labelpad=4)
         ax_D.set_ylabel("Calidad biofísica (%)", labelpad=4)
+        ax_D.set_yticks(range(0, 101, 10))           # major: 0, 10, 20 … 100
+        ax_D.yaxis.set_minor_locator(
+            plt.matplotlib.ticker.MultipleLocator(5)) # minor: every 5
+        ax_D.tick_params(axis="y", which="minor",
+                         length=3, width=0.6, color=C["neutral"])
+        ax_D.tick_params(axis="y", which="major",
+                         length=5, width=0.8)
         ax_D.set_title("",
                        fontweight="bold", pad=5, loc="left")
         ax_D.legend(loc="lower right", frameon=True, framealpha=0.9,
@@ -1299,8 +1374,18 @@ def plot_R6_multisimulacion(stats: Dict, dpi: int = 300) -> str:
                  color=C["lo"], edgecolor="white", linewidth=0.7, zorder=3)
         ax_F.bar(x + w / 2, n_pips,  width=w, label="Clusters PIP",
                  color=C["pip"], edgecolor="white", linewidth=0.7, zorder=3)
-        ax_F.set_xticks(x)
-        ax_F.set_xticklabels([f"sim{s}" for s in seeds], fontsize=8.5)
+        if N > 10:
+            _tick_pos_f = [1] + [i + 1 for i in range(4, N, 5)]
+            if N not in _tick_pos_f:
+                _tick_pos_f.append(N)
+            _tick_lbl_f = [str(p) for p in _tick_pos_f]
+        else:
+            _tick_pos_f = list(x)
+            _tick_lbl_f = [str(i) for i in range(1, N + 1)]
+        ax_F.set_xticks(_tick_pos_f)
+        ax_F.set_xticklabels(_tick_lbl_f, fontsize=8.5,
+                             rotation=0, ha="center")
+        ax_F.set_xlabel("Simulación", labelpad=4)
         ax_F.set_ylabel("N.º de estructuras", labelpad=4)
         ax_F.set_ylim(0, 4.5)
         ax_F.set_title("",
@@ -1312,12 +1397,12 @@ def plot_R6_multisimulacion(stats: Dict, dpi: int = 300) -> str:
 
         fig.suptitle(
             f"Comparativa multi-simulación | N = {N} simulaciones",
-            fontsize=14, fontweight="bold", y=0.96)
+            fontsize=14, fontweight="bold", y=0.98)
         return _save(fig, "R6_comparativa_multisimulacion", dpi, subdir="R6")
 
 
 def plot_R6b_justificacion_N(stats: Dict, dpi: int = 300) -> str:
-    """Genera la figura R6b: convergencia acumulada para justificar N=5."""
+    """Genera la figura R6b: convergencia acumulada para justificar N (dinámico según simulaciones introducidas)."""
     records = stats.get("records", [])
     if len(records) < 2:
         return ""
@@ -1345,23 +1430,18 @@ def plot_R6b_justificacion_N(stats: Dict, dpi: int = 300) -> str:
     CV_COLOR = C["line"]
 
     PANELS_CFG = [
-        #  best_xy: offset "Mejor score"   |  n_xy: offset anotación N=5
         dict(cum=KC_CUM,   col_m=C["lo"],
              ylabel="kc (kBT\u00b7nm\u207b\u00b2)",
-             title="",        lbl="A", row=0, col=0,
-             best_xy=(12, -34), n_xy=(-52, -32)),      # A: score abajo, N=5 abajo
+             title="",        lbl="A", row=0, col=0),
         dict(cum=DPP_CUM,  col_m=C["ld"],
              ylabel="D_PP (\u00c5)",
-             title="",          lbl="B", row=0, col=1,
-             best_xy=(12, -34), n_xy=(-52, 28)),        # B: score abajo, N=5 arriba
+             title="",          lbl="B", row=0, col=1),
         dict(cum=SCHG_CUM, col_m=C["lo"],
              ylabel="S_CH (Lo)",
-             title="",   lbl="C", row=1, col=0,
-             best_xy=(12, -34), n_xy=(-52, 28)),        # C: score abajo, N=5 arriba
+             title="",   lbl="C", row=1, col=0),
         dict(cum=SCHF_CUM, col_m=C["ld"],
              ylabel="S_CH (Ld)",
-             title="",   lbl="D", row=1, col=1,
-             best_xy=(12, 28), n_xy=(-52, 28)),         # D: score arriba, N=5 arriba
+             title="",   lbl="D", row=1, col=1),
     ]
 
     with plt.rc_context(PUB_RC):
@@ -1414,37 +1494,44 @@ def plot_R6b_justificacion_N(stats: Dict, dpi: int = 300) -> str:
                      zorder=4)
             ax1.axvline(N, color=C["neutral"], lw=0.8, ls="--", zorder=1, clip_on=True)
 
-            ax1.annotate(
-                f"Mejor score\nSeed {best_seed_num}",
-                xy=(best_x, m[best_idx]),
-                xytext=p["best_xy"], textcoords="offset points",
-                fontsize=11, color=C["line"],
-                bbox=dict(boxstyle="round,pad=0.35",
-                          fc="#fffbe6", ec="#d4ac0d", lw=1.0, alpha=0.97),
-                arrowprops=dict(arrowstyle="-|>", color="#d4ac0d", lw=1.2),
-                zorder=6,
-            )
-
-            final_m   = m[-1]
-            final_sem = sem[-1]
-            fmt_sem   = (f"{final_sem:.4f}" if final_sem < 0.01
-                         else f"{final_sem:.3f}")
-            ax1.annotate(
-                f"N={N}: \u03bc={final_m:.4g}\n\u00b1{fmt_sem} (SEM)",
-                xy=(N, final_m),
-                xytext=p["n_xy"], textcoords="offset points",
-                fontsize=11,
-                bbox=dict(boxstyle="round,pad=0.35",
-                          fc="white", ec=C["neutral"], lw=0.8, alpha=0.95),
-                arrowprops=dict(arrowstyle="-", color=C["neutral"], lw=1.0),
-                zorder=5,
-            )
+            # Mark best-seed point with a gold star (no eclipsing annotation)
+            ax1.scatter([best_x], [m[best_idx]], s=120, marker="*",
+                        color="#d4ac0d", edgecolors="#a07800", linewidths=0.7,
+                        zorder=7, clip_on=False, label="_nolegend_")
 
             ax1.spines["top"].set_visible(False)
             ax1.set_ylabel(p["ylabel"], labelpad=5)
-            ax1.set_xticks(X)
-            ax1.set_xticklabels([f"N={i}" for i in X], fontsize=8.5)
+            # X-axis: always N=1, then N=5, 10, 15 … up to N
+            _xt_base = np.arange(5, N + 1, 5)
+            _xt = np.concatenate([[1], _xt_base]).astype(int)
+            # If N itself not already included, append it
+            if N not in _xt:
+                _xt = np.concatenate([_xt, [N]])
+            ax1.set_xticks(_xt)
+            ax1.set_xticklabels([f"N={i}" for i in _xt], fontsize=8.5,
+                                rotation=0 if len(_xt) <= 8 else 45,
+                                ha="center" if len(_xt) <= 8 else "right")
             ax1.set_xlim(0.5, N + 0.5)
+
+            # ── Per-panel stats box (lower right, inside axes) ───────────────
+            _fm   = m[-1]
+            _fsem = sem[-1]
+            _fcv  = cv[-1]
+            _fmt_m   = f"{_fm:.4g}"
+            _fmt_sem = f"{_fsem:.4f}" if _fsem < 0.01 else f"{_fsem:.3f}"
+            _stats_txt = (f"μ = {_fmt_m}\n"
+                          f"±{_fmt_sem} SEM\n"
+                          f"CV = {_fcv:.2f} %")
+            ax1.text(
+                0.97, 0.97, _stats_txt,
+                transform=ax1.transAxes,
+                ha="right", va="top", fontsize=8.5,
+                color=C["line"],
+                bbox=dict(boxstyle="round,pad=0.35",
+                          fc="white", ec=C["neutral"],
+                          lw=0.7, alpha=0.88),
+                zorder=8,
+            )
             ax1.set_xlabel("Simulaciones acumuladas", labelpad=4, fontsize=12)
             ax1.set_title(p["title"], fontweight="bold", pad=6,
                           loc="left", fontsize=14)
@@ -1472,26 +1559,196 @@ def plot_R6b_justificacion_N(stats: Dict, dpi: int = 300) -> str:
                        label="CV (%) interpolado"),
                 Line2D([0], [0], color=CV_COLOR, lw=0.7, ls=":",
                        alpha=0.6, label="Umbral CV < 10 %"),
+                Line2D([0], [0], linestyle="none", marker="*",
+                       markersize=9, color="#d4ac0d",
+                       markeredgecolor="#a07800", markeredgewidth=0.7,
+                       label=f"Mejor score (Seed {best_seed_num})"),
             ]
             ax1.legend(handles=leg_h, loc="upper left",
                        frameon=True, framealpha=0.93,
-                       edgecolor=C["neutral"], fontsize=11,
+                       edgecolor=C["neutral"], fontsize=10,
                        handlelength=2.0, borderpad=0.6)
 
         fig.suptitle(
-            "Análisis de convergencia y reproducibilidad  |  Justificación de N = 5",
-            fontsize=14, fontweight="bold", y=0.97)
+            f"Análisis de convergencia y reproducibilidad  |  Justificación de N = {N}",
+            fontsize=14, fontweight="bold", y=0.99)
+
         fig.text(
-            0.5, 0.015,
-            ("CV = coeficiente de variación (\u03c3/\u03bc \u00d7 100).  "
-             "Línea discontinua = spline cúbica interpolada (pasa exactamente por cada punto).  "
-             "Banda sombreada = \u00b1SEM acumulado;  zona rayada = ventana \u00b15 % de la media final.  "
-             "Estrella dorada = seed con mejor score global."),
-            ha="center", va="bottom", fontsize=11,
+            0.5, 0.01,
+            (f"CV = \u03c3/\u03bc \u00d7 100.  Banda sombreada = \u00b1SEM acumulado.  "
+             f"\u2605 Mejor score global: Seed {best_seed_num} (N={best_x})."),
+            ha="center", va="bottom", fontsize=9,
             style="italic", color=C["neutral"],
         )
 
         return _save(fig, "R6b_justificacion_N", dpi, subdir="R6")
+
+
+def generate_anexo_pdf(stats: Dict, output_path: str = "", dpi: int = 150) -> str:
+    """
+    Genera un PDF de anexo ligero con resumen tabular de las simulaciones.
+
+    Incluye:
+      - Tabla de parámetros biofísicos por simulación (kc, D_PP, S_CH Lo/Ld,
+        calidad, N rafts, N PIP clusters).
+      - Medias y desviaciones estándar del conjunto.
+      - Nota de la seed con mejor score global.
+
+    El PDF está diseñado para ser compacto (1 página A4 apaisada) y no contiene
+    figuras de análisis, sólo datos tabulados como anexo del TFM.
+    """
+    records = stats.get("records", [])
+    if not records:
+        print("  generate_anexo_pdf: no hay registros, saltando.")
+        return ""
+
+    if not output_path:
+        output_path = os.path.join(_results_dir(), "R6", "pdf",
+                                   "Anexo_1_resumen_simulaciones.pdf")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    seeds     = [r["seed"] for r in records]
+    kc_vals   = [r["kc"] for r in records]
+    dpp_vals  = [r["thickness_mean_A"] for r in records]
+    schlo     = [r["sch_lo"] for r in records]
+    schld     = [r["sch_ld"] for r in records]
+    qual      = [r.get("val_score", 0.0) for r in records]
+    n_rafts   = [r.get("n_rafts_outer", 0) + r.get("n_rafts_inner", 0)
+                 for r in records]
+    n_pips    = [r.get("n_pip_clusters", 0) for r in records]
+
+    # Escalar quality 0-1 → 0-100 si necesario
+    qual_arr = np.array(qual, dtype=float)
+    if qual_arr.max() <= 1.0 and qual_arr.max() > 0:
+        qual_arr *= 100.0
+    best_idx = int(np.argmax(qual_arr))
+
+    # ── Construir filas de la tabla ──────────────────────────────────────────
+    col_headers = [
+        "Sim", "Seed",
+        "kc\n(kBT·nm⁻²)", "D_PP\n(Å)",
+        "S_CH\n(Lo)", "S_CH\n(Ld)",
+        "Calidad\n(%)", "N rafts", "N PIP\nclusters",
+    ]
+    rows = []
+    for i, r in enumerate(records):
+        rows.append([
+            f"sim{i + 1}",
+            str(seeds[i]),
+            f"{kc_vals[i]:.2f}",
+            f"{dpp_vals[i]:.2f}",
+            f"{schlo[i]:.4f}",
+            f"{schld[i]:.4f}",
+            f"{qual_arr[i]:.1f}",
+            str(n_rafts[i]),
+            str(n_pips[i]),
+        ])
+
+    # Fila de estadísticos resumen
+    def _fmt_stat(arr):
+        a = np.array(arr, dtype=float)
+        return f"{a.mean():.3g} ± {a.std(ddof=1):.3g}"
+
+    summary_row = [
+        "Media ± DE", "—",
+        _fmt_stat(kc_vals),
+        _fmt_stat(dpp_vals),
+        _fmt_stat(schlo),
+        _fmt_stat(schld),
+        _fmt_stat(qual_arr),
+        _fmt_stat(n_rafts),
+        _fmt_stat(n_pips),
+    ]
+
+    N = len(records)
+    n_cols = len(col_headers)
+
+    # ── Figura matplotlib ────────────────────────────────────────────────────
+    with plt.rc_context(PUB_RC):
+        # Altura dinámica: ~0.32 cm por fila + cabecera + márgenes
+        row_h = 0.30
+        fig_h = max(5.0, (N + 3) * row_h + 2.5)
+        fig = plt.figure(figsize=(16.0, fig_h))
+        fig.patch.set_facecolor("white")
+
+        # Título
+        fig.text(
+            0.5, 0.97,
+            "Anexo 1 – Resumen de simulaciones",
+            ha="center", va="top",
+            fontsize=13, fontweight="bold", color=C["line"],
+        )
+        fig.text(
+            0.5, 0.92,
+            (f"N = {N} simulaciones independientes · parámetros biofísicos finales · "
+             f"Valores extraídos de la corrida completa (seed aleatoria por simulación)"),
+            ha="center", va="top",
+            fontsize=9, color=C["neutral"], style="italic",
+        )
+
+        # Eje invisible para la tabla
+        ax = fig.add_axes([0.02, 0.08, 0.96, 0.80])
+        ax.axis("off")
+
+        all_rows = rows + [summary_row]
+        tbl = ax.table(
+            cellText=all_rows,
+            colLabels=col_headers,
+            loc="upper center",
+            cellLoc="center",
+        )
+        tbl.auto_set_font_size(False)
+        tbl.set_fontsize(8.5)
+        tbl.scale(1.0, 1.55)
+        tbl.auto_set_column_width(list(range(n_cols)))
+
+        # Estilo cabecera
+        HEADER_BG = "#2c2c2c"
+        for j in range(n_cols):
+            cell = tbl[0, j]
+            cell.set_facecolor(HEADER_BG)
+            cell.set_text_props(color="white", fontweight="bold", fontsize=8)
+
+        # Estilo filas alternadas
+        for i in range(1, N + 1):
+            bg = "#f7f7f7" if i % 2 == 0 else "white"
+            # Highlight seed con mejor score
+            if i - 1 == best_idx:
+                bg = "#fffbe6"
+            for j in range(n_cols):
+                cell = tbl[i, j]
+                cell.set_facecolor(bg)
+                if i - 1 == best_idx:
+                    cell.set_text_props(fontweight="bold")
+                # Calidad: colorear valor
+                if j == 6:
+                    q = qual_arr[i - 1]
+                    cell.set_text_props(
+                        color=C["pass"] if q >= 80 else C["fail"],
+                        fontweight="bold"
+                    )
+
+        # Fila de resumen (última)
+        for j in range(n_cols):
+            cell = tbl[N + 1, j]
+            cell.set_facecolor("#dde8f0")
+            cell.set_text_props(fontweight="bold", fontsize=8)
+
+        # Nota al pie
+        fig.text(
+            0.5, 0.025,
+            (f"★  Seed con mejor score global: Seed {seeds[best_idx]}  "
+             f"(sim{best_idx + 1}, calidad = {qual_arr[best_idx]:.1f} %).  "
+             "kc = módulo de bending; D_PP = grosor cabeza-cabeza; "
+             "S_CH = parámetro de orden acil; Lo = fase ordenada; Ld = fase desordenada."),
+            ha="center", va="bottom",
+            fontsize=8, color=C["neutral"], style="italic",
+        )
+
+        fig.savefig(output_path, dpi=dpi, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        print(f"  -> {os.path.relpath(output_path)}")
+    return output_path
 
 
 def main():
@@ -1562,7 +1819,6 @@ Ejemplos:
             
             sch = b.get_sch_by_domain()
 
-            # FIX: usar accuracy_pct (escala 0-100)
             val_score = 0.0
             if results and "summary" in results:
                 val_score = results["summary"].get("accuracy_pct", 0.0)
@@ -1571,7 +1827,7 @@ Ejemplos:
                 "seed": seed,
                 "kc":   b.bending_modulus,
                 "sigma":b.surface_tension,
-                "thickness_mean_A": thickness_mean,  # D_PP real cabeza-cabeza
+                "thickness_mean_A": thickness_mean,
                 "thickness_total_A": float(b.geometry.total_thick),
                 "n_rafts_outer":    len(b.rafts_outer),
                 "n_rafts_inner":    len(b.rafts_inner),
@@ -1596,6 +1852,7 @@ Ejemplos:
         }
         plot_R6_multisimulacion(stats, dpi=args.dpi)
         plot_R6b_justificacion_N(stats, dpi=args.dpi)
+        generate_anexo_pdf(stats, dpi=args.dpi)
     elif "R6" in only:
         print("  R6 requiere >=2 simulaciones.")
     print(f"\n[OK] Listo. Resultados en: {RESULTS_DIR}")

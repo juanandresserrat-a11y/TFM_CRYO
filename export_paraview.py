@@ -27,10 +27,10 @@ Propiedades por grano:
                    combina in_raft + phase_gel + ed_tail_norm. Rango [0,1].
 
 Referencias principales:
-    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
-    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y modelos de densidad electrónica
-    [16]  Piggot et al. 2017 – cálculo del parámetro de orden S_CH a partir de simulaciones de lípidos
-    [18]  Chaisson et al. 2025 – cuantificación de interdigitación en bicapas simuladas mediante interacciones trans-bicapa
+    [18]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [19]  Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y modelos de densidad electrónica
+    [20]  Piggot et al. 2017 – cálculo del parámetro de orden S_CH a partir de simulaciones de lípidos
+    [22]  Chaisson et al. 2025 – cuantificación de interdigitación en bicapas simuladas mediante interacciones trans-bicapa
 """
 
 from __future__ import annotations

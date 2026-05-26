@@ -7,12 +7,12 @@ No dependen de la clase BicapaCryoET, por lo que pueden probarse
 de forma independiente.
 
 Referencias principales:
-    [11]  Helfrich 1973 – energía elástica de membranas y descripción de la curvatura en bicapas
-    [12]  Pinigin 2022 – espectro de fluctuaciones de membrana y parámetros elásticos efectivos
-    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending (kc) con la composición lipídica de la membrana
-    [16]  Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
-    [17]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
-    [23]  Smith et al. 2019 – modelado de kinks en cadenas acil y geometría de dobles enlaces en lípidos
+    [15]  Helfrich 1973 – energía elástica de membranas y descripción de la curvatura en bicapas
+    [16]  Pinigin 2022 – espectro de fluctuaciones de membrana y parámetros elásticos efectivos
+    [17]  Chakraborty et al. 2020 – dependencia del módulo de bending (kc) con la composición lipídica de la membrana
+    [20]  Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
+    [21]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
+    [24]  Smith et al. 2019 – modelado de kinks en cadenas acil y geometría de dobles enlaces en lípidos
 """
 
 from __future__ import annotations

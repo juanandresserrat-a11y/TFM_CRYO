@@ -23,11 +23,11 @@ bilayer_sim{N}.vtp (general); extrae proteinas, CHOL y colas internamente
 mediante Thresholds sobre los arrays de punto.
 
 Referencias principales:
-    [11]  Helfrich 1973 – elasticidad de membranas y fluctuaciones de curvatura en bicapas lipídicas
-    [14]  Kučerka et al. 2008 – determinación experimental de espesores y áreas por lípido en bicapas
-    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica
-    [16]  Piggot et al. 2017 – cálculo de parámetros de orden acil (S_CH) en simulaciones lipídicas
+    [11]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [15]  Helfrich 1973 – elasticidad de membranas y fluctuaciones de curvatura en bicapas lipídicas
+    [18]  Kučerka et al. 2008 – determinación experimental de espesores y áreas por lípido en bicapas
+    [19]  Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica
+    [20]  Piggot et al. 2017 – cálculo de parámetros de orden acil (S_CH) en simulaciones lipídicas
 """
 
 from __future__ import annotations
@@ -102,11 +102,6 @@ def _tail_density_with_unsaturation(lipid_name: str, z_frac: float) -> float:
         return ELECTRON_DENSITY["tail_fluid"]
 
     if lipid_name == "CHOL":
-        # FIX bug 1: perfil continuo (consistente con export_paraview._tail_ed v2).
-        # El escalon original (0.302/0.280 en z_frac=0.45) ponia los segmentos
-        # terminales por debajo de POPC (0.294), invirtiendo el contraste visual.
-        # Ahora: anillo esteroide rigido (frac<=0.75) → 0.308; cola isooctil
-        # terminal decae gradualmente hasta 0.285.
         if z_frac <= 0.75:
             return 0.308
         else:
@@ -189,10 +184,6 @@ def build_physical_volume(
         z_g   = (l.glycerol_pos[2] / 10.0) - z_ref
 
         hg_half_nm = l.lipid_type.hg_thick / 10.0 / 2.0
-        # FIX bug 2: minimo 0.35 nm (= 3.5 A).
-        # CHOL tiene hg_thick=4A → hg_half=0.2 nm. A 9 A/voxel la cabeza
-        # cae entera en UN voxel y queda invisible frente al fondo de agua.
-        # Consistente con la correccion ya aplicada en electron_density.py.
         hg_safe    = max(hg_half_nm, 0.35)
 
         for iz, zc in enumerate(z_centers):

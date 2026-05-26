@@ -3,7 +3,7 @@ figures.py
 Estándares tipográficos Nature / Biophysical Journal.
 
 Referencias principales:
-    [02]  Simons & Ikonen 1997 – organización funcional en lipid rafts de membranas celulares
+    [03]  Simons & Ikonen 1997 – organización funcional en lipid rafts de membranas celulares
 """
 
 from __future__ import annotations

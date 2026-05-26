@@ -25,8 +25,9 @@ Estructura de subcarpetas:
   mrc/config/      plantillas YAML de configuracion PolNet
   
 Referencia principal:
-    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y perfiles de densidad electrónica
-    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET   
+    [11]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET 
+    [19]  Nagle & Tristram-Nagle 2000 – estructura de bicapas lipídicas y perfiles de densidad electrónica
+      
 """
 
 from __future__ import annotations

@@ -18,11 +18,11 @@ Genera dos tipos de salidas:
      - Distribucion de scores de validacion
 
 Referencias principales:
-    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
-    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [22]  Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
-    [20]  Peck et al. 2025 – benchmark con ground-truth para promediado de subtomogramas en cryo-ET
-    [21]  Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular (TomoSegNet)
+    [11]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [12]  Peck et al. 2025 – benchmark con ground-truth para promediado de subtomogramas en cryo-ET
+    [13]  Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular (TomoSegNet)
+    [14]  Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
+    [17]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
 """
 
 from __future__ import annotations

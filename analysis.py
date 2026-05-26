@@ -12,20 +12,20 @@ Esto permite:
 
 Referencias principales:
     [01]  Singer & Nicolson 1972 – modelo de mosaico fluido de membranas
-    [02]  Simons & Ikonen 1997 – organización en lipid rafts y principio funcional en membranas celulares
-    [06]  Lučič et al. 2013 – cryo-electron tomography in situ
-    [11]  Helfrich 1973 – elasticidad de membranas y modelo de fluctuaciones
-    [12]  Pinigin 2022 – parámetros elásticos en membranas lipídicas
-    [13]  Chakraborty et al. 2020 – efecto del colesterol en la rigidez de membranas insaturadas
-    [14]  Kučerka 2011 – espesores de bicapa y áreas lipídicas en PC comunes
-    [16]  Piggot 2017 – cálculo de parámetros de orden S_CH
-    [17]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
-    [18]  Chaisson 2025 – cuantificación de la interdigitación en bicapas simuladas
-    [19]  Martinez-Sanchez 2024 – generación de datasets sintéticos para cryo-ET
-    [22]  Moebel et al. 2021 – deep learning en cryo-ET    
-    [23]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas
-    [24]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel dinámica de membrana    
-    [27]  Liu et al. 2021 – simulaciones de membranas a doble resolución 
+    [03]  Simons & Ikonen 1997 – organización en lipid rafts y principio funcional en membranas celulares
+    [07]  Lučič et al. 2013 – cryo-electron tomography in situ
+    [11]  Martinez-Sanchez 2024 – generación de datasets sintéticos para cryo-ET
+    [14]  Moebel et al. 2021 – deep learning en cryo-ET
+    [15]  Helfrich 1973 – elasticidad de membranas y modelo de fluctuaciones
+    [16]  Pinigin 2022 – parámetros elásticos en membranas lipídicas
+    [17]  Chakraborty et al. 2020 – efecto del colesterol en la rigidez de membranas insaturadas
+    [18]  Kučerka 2011 – espesores de bicapa y áreas lipídicas en PC comunes
+    [20]  Piggot 2017 – cálculo de parámetros de orden S_CH
+    [21]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
+    [22]  Chaisson 2025 – cuantificación de la interdigitación en bicapas simuladas
+    [24]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas
+    [25]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs) y su papel dinámica de membrana    
+    [26]  Liu et al. 2021 – simulaciones de membranas a doble resolución 
 """
 
 from __future__ import annotations

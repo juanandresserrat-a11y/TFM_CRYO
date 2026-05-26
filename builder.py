@@ -4,16 +4,16 @@ Construcción y organización de la bicapa.
 
 Referencias principales:
     [01]  Singer & Nicolson 1972 – modelo de mosaico fluido de la estructura de membranas celulares
-    [02]  Simons & Ikonen 1997 – organización en lipid rafts
-    [03]  Lingwood & Simons 2010 – rafts como principio organizador de membrana
-    [11]  Helfrich 1973 – elasticidad de membranas y curvatura
+    [03]  Simons & Ikonen 1997 – organización en lipid rafts
+    [04]  Lingwood & Simons 2010 – rafts como principio organizador de membrana
     [12]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
-    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
-    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
-    [17]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
-    [23]  Smith et al. 2018 – simulación de membranas lipídicas por dinámica molecular
-    [24]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
-    [27]  Liu et al. 2021 – simulaciones de membranas a doble resolución
+    [15]  Helfrich 1973 – elasticidad de membranas y curvatura
+    [17]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [18]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [21]  Bartoš et al. 2025 – herramienta gorder para cálculo estandarizado  de parámetros
+    [24]  Smith et al. 2018 – simulación de membranas lipídicas por dinámica molecular
+    [25]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
+    [26]  Liu et al. 2021 – simulaciones de membranas a doble resolución
 """
 
 from __future__ import annotations

@@ -36,8 +36,8 @@ Geometría del sistema:
   - Curvaturas fuertes (orgánulos) no están modeladas
 
 Referencia principal:
-    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [23]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas por dinámica molecular
+    [11]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [24]  Smith et al. 2018 – buenas prácticas en simulación de membranas lipídicas por dinámica molecular
 """
 
 from __future__ import annotations

@@ -29,9 +29,9 @@ Los resultados se guardan en `CryoET/`.
 ## main.py — Generar simulaciones
 
 ```bash
-python main.py --sims 27            # una simulación
+python main.py --sims 23            # una simulación
 python main.py --sims 1 2 3 4 5     # varias
-python main.py --sims 27 --all      # todos los formatos de exportación
+python main.py --sims 23 --all      # todos los formatos de exportación
 ```
 
 | Flag | Descripción |
@@ -52,7 +52,7 @@ python main.py --sims 27 --all      # todos los formatos de exportación
 
 ```bash
 python results.py --sims 1 2 3 4 5         # R1–R6 completo
-python results.py --sims 27 --only R1 R3   # secciones específicas
+python results.py --sims 23 --only R1 R3   # secciones específicas
 ```
 
 | Sección | Contenido |

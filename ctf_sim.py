@@ -15,18 +15,18 @@ la anisotropía del missing wedge.
 
 Referencias principales:
     [01]  Singer & Nicolson 1972 – modelo de mosaico fluido de membranas
-    [02]  Simons & Ikonen 1997 – organización en lipid rafts
-    [03]  Lingwood & Simons 2010 – rafts como principio organizador de membrana
-    [06]  Lucić, Rigort & Baumeister 2013 – cryo-electron tomography in situ
-    [07]  Frank 2006 – electron tomography y reconstrucción 3D
-    [08]  Sharma et al. 2023 – visualización de la estructura de membranas lipídicas con cryo-EM
-    [14]  Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas
-    [11]  Helfrich 1973 – elasticidad de membranas y curvatura
-    [12]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
-    [13]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
-    [19]  Martinez-Sanchez 2024 – simulación de contexto celular en cryo-ET
-    [24]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
-    [27]  Liu et al. 2021 – simulaciones de membranas a doble resolución
+    [03]  Simons & Ikonen 1997 – organización en lipid rafts
+    [04]  Lingwood & Simons 2010 – rafts como principio organizador de membrana
+    [07]  Lucić, Rigort & Baumeister 2013 – cryo-electron tomography in situ
+    [08]  Frank 2006 – electron tomography y reconstrucción 3D
+    [09]  Sharma et al. 2023 – visualización de la estructura de membranas lipídicas con cryo-EM
+    [11]  Martinez-Sanchez 2024 – simulación de contexto celular en cryo-ET
+    [18]  Kučerka et al. 2008 – espesores y áreas lipídicas en bicapas
+    [15]  Helfrich 1973 – elasticidad de membranas y curvatura
+    [16]  Pinigin 2022 – espectro de fluctuaciones y parámetros elásticos
+    [17]  Chakraborty et al. 2020 – dependencia del módulo de bending con composición lipídica
+    [25]  Di Paolo & De Camilli 2006 – regulación de fosfoinosítidos (PIPs)
+    [26]  Liu et al. 2021 – simulaciones de membranas a doble resolución
     
 """
 from __future__ import annotations

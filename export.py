@@ -6,9 +6,9 @@ Genera 12 canales por semilla y actualiza el labels.json global.
 No depende de matplotlib, por lo que puede ejecutarse sin entorno gráfico.
 
 Referencias principales:
-    [19]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
-    [21]  Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular
-    [22]  Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
+    [11]  Martinez-Sanchez et al. 2024 – simulación de contexto celular en datasets sintéticos de cryo-ET
+    [13]  Seghiri et al. 2026 – segmentación aumentada de membranas en cryo-ET mediante simulación del contexto celular
+    [14]  Moebel et al. 2021 – deep learning para identificación de macromoléculas en tomogramas celulares de cryo-ET
 """
 
 from __future__ import annotations
@@ -43,12 +43,12 @@ CHANNEL_DESCRIPTIONS = {
 }
 
 REFERENCES = [
-        "Smith et al. LiveCoMS 2019 [23]",
-        "Helfrich 1973 [11]",
-        "Pinigin Membranes 2022 [12]",
-        "Chakraborty et al. PNAS 2020 [13]",
-        "Piggot et al. JCTC 2017 [16]",
-        "Chaisson et al. JCIM 2025 [18]",
+        "Smith et al. LiveCoMS 2019 [24]",
+        "Helfrich 1973 [15]",
+        "Pinigin Membranes 2022 [16]",
+        "Chakraborty et al. PNAS 2020 [17]",
+        "Piggot et al. JCTC 2017 [18]",
+        "Chaisson et al. JCIM 2025 [22]",
 ]
 
 

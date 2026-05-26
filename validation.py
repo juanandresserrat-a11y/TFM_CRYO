@@ -16,12 +16,12 @@ Cada test devuelve un valor numérico y un criterio pass/cerca/fail respecto a
 rangos experimentales.
 
 Referencias principales:
-    [08]  Sharma et al. 2023 – estructura de membranas en cryo-EM
-    [12]  Pinigin 2022 – parámetros elásticos de membranas desde simulación molecular
-    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
-    [15]  Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica en sistemas lipídicos
-    [16]  Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
-    [25]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET)
+    [09]  Sharma et al. 2023 – estructura de membranas en cryo-EM
+    [16]  Pinigin 2022 – parámetros elásticos de membranas desde simulación molecular
+    [18]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [19]  Nagle & Tristram-Nagle 2000 – estructura de bicapas y perfiles de densidad electrónica en sistemas lipídicos
+    [20]  Piggot et al. 2017 – cálculo del parámetro de orden acil S_CH desde simulaciones moleculares
+    [23]  Glushkova et al. 2026 – variación de grosor en membranas celulares (cryo-ET)
 """
 
 from __future__ import annotations

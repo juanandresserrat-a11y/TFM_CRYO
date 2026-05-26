@@ -20,9 +20,9 @@ Valores de referencia (e/Å³):
   Nucleo CH2: 0.29
 
 Referencias principales:
-    [05]  Dubochet et al. 1988 – microscopía crioelectrónica de especímenes vitrificados, fundamento de cryo-ET
-    [14]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
-    [15]  Nagle & Tristram-Nagle 2000 – modelo estructural de bicapas y perfiles de densidad electrónica en sistemas lipídicos
+    [06]  Dubochet et al. 1988 – microscopía crioelectrónica de especímenes vitrificados, fundamento de cryo-ET
+    [18]  Kučerka et al. 2011 – espesores y áreas lipídicas en bicapas PC
+    [19]  Nagle & Tristram-Nagle 2000 – modelo estructural de bicapas y perfiles de densidad electrónica en sistemas lipídicos
 """
 
 from __future__ import annotations
