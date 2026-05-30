@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Entorno / checkpoints (NO subir)
+.ipynb_checkpoints/
+.ipython/
+.mozilla/
+.wget-hsts
+*~
+*.swp
+*.tmp
+
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Outputs específicos excluidos
+CryoET/resultados/R6/pdf/Anexo_1_resumen_simulaciones.pdf
