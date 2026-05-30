@@ -1,6 +1,6 @@
 # TFM — Generador sintético de bicapas lipídicas para Cryo-ET
 
-Genera datasets sintéticos de membranas lipídicas simuladas para Cryo-ET.
+Genera datasets sintéticos de membranas lipídicas simuladas para Cryo-ET y machine learning, con exportación multiformato y figuras de publicación.
 
 ---
 
@@ -19,7 +19,7 @@ python -m pip install -r requirements.txt --user
 python main.py --sims 1 2 3 4 5 --validate --all
 
 # Paso 2 — generar figuras de resultados
-python results.py --sims 1 2 3 4 5
+python run_results.py --sims 1 2 3 4 5
 ```
 
 Los resultados se guardan en `CryoET/`. El directorio de salida se configura en `config.py`.
@@ -48,11 +48,11 @@ python main.py --sims 23 --all      # todos los formatos de exportación
 
 ---
 
-## results.py — Figuras de resultados
+## run_results.py — Figuras de resultados
 
 ```bash
-python results.py --sims 1 2 3 4 5         # R1–R6 completo
-python results.py --sims 23 --only R1 R3   # secciones específicas
+python run_results.py --sims 1 2 3 4 5         # R1–R6 completo
+python run_results.py --sims 23 --only R1 R3   # secciones específicas
 ```
 
 | Sección | Contenido |
@@ -71,13 +71,14 @@ Los PDFs se guardan en `CryoET/resultados/`.
 
 ## Estructura del proyecto
 
-El código se organiza en seis paquetes por responsabilidad funcional, siguiendo la arquitectura de capas descrita en el TFM (Figura 1), tratandose de 17 archivos funcionales principales.
+El código se organiza en seis paquetes por responsabilidad funcional, siguiendo la arquitectura de capas descrita en el TFM (Figura 1).
 
 ```
 proyecto/
 ├── main.py                        # Punto de entrada: genera simulaciones
-├── results.py                     # Punto de entrada: genera figuras de resultados
+├── run_results.py                 # Punto de entrada: genera figuras de resultados
 ├── config.py                      # Configuración global (OUTPUT_DIR)
+├── pyproject.toml                 # Configuración de formateo (black, isort)
 ├── requirements.txt
 │
 ├── datos/                         # Tipos lipídicos y geometría (solo lectura)
