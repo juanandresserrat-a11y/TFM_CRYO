@@ -1,6 +1,6 @@
 # TFM — Generador sintético de bicapas lipídicas para Cryo-ET
 
-Genera datasets sintéticos de membranas lipídicas simuladas para Cryo-ET y machine learning, con exportación multiformato y figuras de publicación.
+Genera datasets sintéticos de membranas lipídicas simuladas para Cryo-ET.
 
 ---
 
@@ -71,14 +71,13 @@ Los PDFs se guardan en `CryoET/resultados/`.
 
 ## Estructura del proyecto
 
-El código se organiza en seis paquetes por responsabilidad funcional, siguiendo la arquitectura de capas descrita en el TFM (Figura 1).
+El código se organiza en seis paquetes por responsabilidad funcional, siguiendo la arquitectura de capas descrita en el TFM (Figura 1), tratandose de 17 archivos funcionales principales.
 
 ```
 proyecto/
 ├── main.py                        # Punto de entrada: genera simulaciones
 ├── results.py                     # Punto de entrada: genera figuras de resultados
 ├── config.py                      # Configuración global (OUTPUT_DIR)
-├── pyproject.toml                 # Configuración de formateo (black, isort)
 ├── requirements.txt
 │
 ├── datos/                         # Tipos lipídicos y geometría (solo lectura)
