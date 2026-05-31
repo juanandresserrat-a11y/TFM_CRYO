@@ -1,10 +1,7 @@
 """
 run_results.py — Punto de entrada para figuras de resultados.
 
-Delega la ejecución en visualizacion/results.py conservando
-la interfaz documentada en el README:
-
-    python run_results.py --sims 1 2 3 4 5
+Delega la ejecución en visualizacion/results.py
 """
 import os
 import sys
