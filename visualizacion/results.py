@@ -432,7 +432,6 @@ def plot_R1_caracterizacion(membrane: BicapaCryoET, dpi: int = 300) -> str:
             frac = np.clip((v - lo) / rng, 0.0, 1.0) if rng != 0 else 0.0
             out_of_range = not (lo <= v <= hi)
 
-            # ── Fondo gris ANCHO: rango de referencia completo [0 → 1] ──
             ax_param.barh(
                 i,
                 1.0,
@@ -445,8 +444,6 @@ def plot_R1_caracterizacion(membrane: BicapaCryoET, dpi: int = 300) -> str:
                 label="Rango ref." if i == 0 else "",
             )
 
-            # ── Barra del valor DELGADA: bullet chart ──
-            # Color SIEMPRE el del parámetro; la alerta va solo en la flecha/texto
             bar_color = p["color"]
             ax_param.barh(
                 i,
@@ -517,7 +514,6 @@ def plot_R1_caracterizacion(membrane: BicapaCryoET, dpi: int = 300) -> str:
 
             val_str = f"{v:.4f}" if abs(v) < 0.1 else f"{v:.1f}"
 
-            # Texto a la derecha con símbolo de estado (dentro del xlim extendido)
             ax_param.text(
                 1.17,
                 i,
@@ -1486,10 +1482,6 @@ def plot_R4_campos(membrane: BicapaCryoET, dpi: int = 300) -> str:
             _parts = title.split("\n")
             _unit_str = _parts[1].strip() if len(_parts) > 1 else ""
             if _unit_str:
-                # Tick labels numéricos del colorbar SÍ visibles;
-                # el label de unidades se muestra solo en el recuadro del panel
-                # Recuadro de unidades en esquina inferior derecha:
-                # visible tanto en PDF como en PNG, sin solaparse con el título
                 ax.text(
                     0.97,
                     0.06,
@@ -1509,8 +1501,7 @@ def plot_R4_campos(membrane: BicapaCryoET, dpi: int = 300) -> str:
                     ),
                     zorder=10,
                 )
-            # Tick labels numéricos del colorbar visibles
-            # Título limpio: solo el nombre descriptivo (sin prefijo cX ni unidades)
+                
             ax.set_title(title.split("\n")[0], fontsize=8.5, pad=3)
             ax.set_xlabel("x (nm)", fontsize=8.5)
             ax.set_ylabel("y (nm)", fontsize=8.5)
@@ -2027,7 +2018,6 @@ def plot_R6b_justificacion_N(stats: Dict, dpi: int = 300) -> str:
             )
             ax1.axvline(N, color=C["neutral"], lw=0.8, ls="--", zorder=1, clip_on=True)
 
-            # Mark best-seed point with a gold star (no eclipsing annotation)
             ax1.scatter(
                 [best_x],
                 [m[best_idx]],
@@ -2058,7 +2048,6 @@ def plot_R6b_justificacion_N(stats: Dict, dpi: int = 300) -> str:
             )
             ax1.set_xlim(0.5, N + 0.5)
 
-            # ── Per-panel stats box (lower right, inside axes) ───────────────
             _fm = m[-1]
             _fsem = sem[-1]
             _fcv = cv[-1]
@@ -2203,7 +2192,6 @@ def generate_anexo_pdf(stats: Dict, output_path: str = "", dpi: int = 150) -> st
         qual_arr *= 100.0
     best_idx = int(np.argmax(qual_arr))
 
-    # ── Construir filas de la tabla ──────────────────────────────────────────
     col_headers = [
         "Sim",
         "Seed",
@@ -2251,7 +2239,6 @@ def generate_anexo_pdf(stats: Dict, output_path: str = "", dpi: int = 150) -> st
     N = len(records)
     n_cols = len(col_headers)
 
-    # ── Figura matplotlib ────────────────────────────────────────────────────
     with plt.rc_context(PUB_RC):
         # Altura dinámica: ~0.32 cm por fila + cabecera + márgenes
         row_h = 0.30
@@ -2361,10 +2348,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos:
-  python results.py --sims 1
-  python results.py --sims 1 2 3 4 5
-  python results.py --sims 1 --only R1 R3 R4
-  python results.py --sims 1 --dpi 300 --size 50 50
+  python run_results.py --sims 1
+  python run_results.py --sims 1 2 3 4 5
+  python run_results.py --sims 1 --only R1 R3 R4
+  python run_results.py --sims 1 --dpi 300 --size 50 50
         """,
     )
     parser.add_argument(
@@ -2394,7 +2381,7 @@ Ejemplos:
     size_nm = tuple(args.size)
 
     print(
-        f"\nresults.py — {len(args.sims)} simulación(es) | "
+        f"\nrun_results.py — {len(args.sims)} simulación(es) | "
         f"{size_nm[0]:.0f}×{size_nm[1]:.0f} nm | DPI={args.dpi}"
     )
     print(f"Secciones: {', '.join(sorted(only))}")
